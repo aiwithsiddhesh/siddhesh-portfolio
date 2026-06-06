@@ -9,7 +9,7 @@ export const person = {
   email: "parab.ssp.siddhesh@gmail.com",
   phone: "+91 9325849500",
   linkedin: "https://www.linkedin.com/in/parab-siddhesh",
-  github: "https://github.com/qa-kit-cli",
+  github: "https://github.com/aiwithsiddhesh",
   openTo: [
     "Forward-Deployed Engineer",
     "AI Solutions Engineer",
@@ -115,7 +115,7 @@ export const projects = [
       "Published to PyPI — installable with pip install qa-kit-cli",
     ],
     stack: ["Python", "CLI", "CI/CD", "PyPI", "AI-assisted QA"],
-    github: "https://github.com/qa-kit-cli/qa-kit",
+    github: "https://github.com/aiwithsiddhesh/qa-kit",
     pypi: "https://pypi.org/project/qa-kit-cli/",
   },
   {

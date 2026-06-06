@@ -9,7 +9,7 @@ const contactItems = [
   { icon: "📞", label: "Phone", value: person.phone, href: `tel:${person.phone}` },
   { icon: "📍", label: "Location", value: person.location, href: null },
   { icon: "💼", label: "LinkedIn", value: "linkedin.com/in/parab-siddhesh", href: person.linkedin },
-  { icon: "⚙️", label: "GitHub", value: "github.com/qa-kit-cli", href: person.github },
+  { icon: "⚙️", label: "GitHub", value: "github.com/aiwithsiddhesh", href: person.github },
 ];
 
 export default function ContactPage() {
