@@ -211,7 +211,7 @@ export const certifications = [
     issuer: "Anthropic",
     icon: "🤖",
     year: "Apr 2026",
-    link: "https://verify.skilljar.com/c/bk7ngdf2k6qr",
+    link: "https://verify.skilljar.com/c/92fof232988t",
   },
   {
     title: "Claude Code in Action",
@@ -232,14 +232,14 @@ export const certifications = [
     issuer: "Anthropic",
     icon: "🤝",
     year: "2026",
-    link: "https://verify.skilljar.com/c/92fof232988t",
+    link: "https://verify.skilljar.com/c/yovfr4sgze7c",
   },
   {
     title: "Introduction to Agent Skills",
     issuer: "Anthropic",
     icon: "🧠",
     year: "2026",
-    link: "https://verify.skilljar.com/c/yovfr4sgze7c",
+    link: "https://verify.skilljar.com/c/bk7ngdf2k6qr",
   },
   {
     title: "Spec-Driven Development with Coding Agents",
