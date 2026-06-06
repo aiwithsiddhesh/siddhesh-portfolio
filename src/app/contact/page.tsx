@@ -101,7 +101,7 @@ export default function ContactPage() {
                   </div>
                 ) : (
                   <form
-                    action="https://formspree.io/f/YOUR_FORM_ID"
+                    action="https://formspree.io/f/mwvjlkow"
                     method="POST"
                     onSubmit={handleSubmit}
                     className="space-y-5"
