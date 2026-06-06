@@ -58,10 +58,10 @@ export default function CertificationsPage() {
                 className="text-2xl font-black uppercase mb-2"
                 style={{ fontFamily: "var(--font-oswald, sans-serif)", color: "var(--lime)" }}
               >
-                5× Anthropic Certified
+                7× Certified
               </p>
               <p className="text-sm" style={{ color: "#a0aec0" }}>
-                Claude Code 101 · Claude Code in Action · MCP · Agent Skills · Subagents
+                5× Anthropic · 2× DeepLearning.AI — all with verify links
               </p>
             </div>
           </RevealWrapper>
