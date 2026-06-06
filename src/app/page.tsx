@@ -1,65 +1,127 @@
-import Image from "next/image";
+"use client";
+import { useEffect, useRef } from "react";
+import Link from "next/link";
+import { person } from "@/lib/data";
 
-export default function Home() {
+const roles = person.roles;
+
+export default function HomePage() {
+  const twRef = useRef<HTMLSpanElement>(null);
+  const state = useRef({ roleIdx: 0, charIdx: 0, deleting: false });
+
+  useEffect(() => {
+    let timeout: ReturnType<typeof setTimeout>;
+    function type() {
+      const el = twRef.current;
+      const s = state.current;
+      if (!el) return;
+      const current = roles[s.roleIdx];
+      if (s.deleting) {
+        el.textContent = current.substring(0, --s.charIdx);
+        if (s.charIdx < 0) {
+          s.deleting = false;
+          s.roleIdx = (s.roleIdx + 1) % roles.length;
+          timeout = setTimeout(type, 400);
+          return;
+        }
+        timeout = setTimeout(type, 50);
+      } else {
+        el.textContent = current.substring(0, ++s.charIdx);
+        if (s.charIdx > current.length) {
+          s.deleting = true;
+          timeout = setTimeout(type, 2000);
+          return;
+        }
+        timeout = setTimeout(type, 100);
+      }
+    }
+    timeout = setTimeout(type, 600);
+    return () => clearTimeout(timeout);
+  }, []);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <section
+      className="min-h-screen flex items-center pt-20"
+      style={{
+        background:
+          "radial-gradient(circle at bottom right, rgba(188,224,0,0.3) 0%, var(--cream) 60%)",
+      }}
+    >
+      <div className="max-w-6xl mx-auto px-6 py-24 w-full">
+        <h1
+          className="font-black uppercase leading-none mb-6"
+          style={{
+            fontSize: "clamp(64px, 11vw, 120px)",
+            letterSpacing: "-0.02em",
+            color: "var(--navy)",
+            fontFamily: "var(--font-oswald, sans-serif)",
+          }}
+        >
+          Siddhesh
+          <br />
+          Parab
+        </h1>
+
+        <div
+          className="text-xl font-bold uppercase tracking-wider mb-6 flex items-center"
+          style={{ fontFamily: "var(--font-oswald, sans-serif)", color: "var(--navy)", minHeight: 32 }}
+        >
+          <span ref={twRef} />
+          <span className="tw-cursor" />
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        <div className="flex flex-wrap gap-3 mb-8">
+          {["OpenAI · Claude · LangChain", "RAG Pipelines", "7+ Years", "Pune, India"].map((t) => (
+            <span
+              key={t}
+              className="px-4 py-2 rounded-full text-sm font-bold uppercase tracking-wide"
+              style={{ background: "var(--navy)", color: "var(--lime)" }}
+            >
+              {t}
+            </span>
+          ))}
         </div>
-      </main>
-    </div>
+
+        <p className="text-lg leading-relaxed mb-10 font-medium" style={{ color: "#4a5568", maxWidth: 680 }}>
+          {person.tagline}
+        </p>
+
+        <div className="flex flex-wrap gap-4 mb-12">
+          <Link
+            href="/projects"
+            className="inline-flex items-center gap-2 px-8 py-4 rounded-full text-sm font-bold uppercase tracking-wide transition-all duration-200 hover:-translate-y-0.5"
+            style={{ background: "var(--lime)", color: "var(--navy)" }}
+          >
+            → See My Work
+          </Link>
+          <Link
+            href="/contact"
+            className="inline-flex items-center gap-2 px-8 py-4 rounded-full text-sm font-bold uppercase tracking-wide border-2 transition-all duration-200 hover:-translate-y-0.5"
+            style={{ borderColor: "var(--navy)", color: "var(--navy)" }}
+          >
+            Get In Touch
+          </Link>
+        </div>
+
+        <div className="flex gap-4">
+          {[
+            { href: person.linkedin, label: "Li" },
+            { href: person.github, label: "Gh" },
+            { href: `mailto:${person.email}`, label: "@" },
+          ].map((s) => (
+            <a
+              key={s.label}
+              href={s.href}
+              target={s.href.startsWith("http") ? "_blank" : undefined}
+              rel="noopener"
+              className="w-12 h-12 rounded-full flex items-center justify-center text-xs font-bold uppercase transition-all duration-200 hover:-translate-y-1 hover:bg-[#bce000]"
+              style={{ background: "#fff", color: "var(--navy)", boxShadow: "0 10px 40px rgba(22,26,40,0.08)" }}
+            >
+              {s.label}
+            </a>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }

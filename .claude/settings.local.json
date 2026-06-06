@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:gaurinagre.github.io)",
+      "WebFetch(domain:learn.deeplearning.ai)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(git init *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(npm --version)",
+      "Bash(npx create-next-app@latest *)",
+      "Bash(cp -r /e/dev/siddhesh-portfolio-next/. /e/dev/siddhesh-portfolio/)",
+      "Bash(cp -r /e/dev/siddhesh-portfolio/_old/assets /e/dev/siddhesh-portfolio/public/)",
+      "Bash(npm install *)",
+      "Bash(npm run *)"
+    ]
+  }
+}
