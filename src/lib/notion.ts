@@ -5,6 +5,36 @@ const notion = new Client({ auth: process.env.NOTION_API_KEY });
 const n2m = new NotionToMarkdown({ notionClient: notion as any });
 
 const DB_ID = process.env.NOTION_BLOG_DATABASE_ID!;
+const CERTS_DB_ID = process.env.NOTION_CERTS_DATABASE_ID!;
+
+export interface Certification {
+  id: string;
+  title: string;
+  issuer: string;
+  year: string;
+  icon: string;
+  link: string | null;
+}
+
+export async function getCertifications(): Promise<Certification[]> {
+  const response = await (notion as any).databases.query({
+    database_id: CERTS_DB_ID,
+    filter: { property: "Published", checkbox: { equals: true } },
+    sorts: [{ property: "Year", direction: "ascending" }],
+  });
+
+  return (response.results ?? []).map((page: any) => {
+    const props = page.properties ?? {};
+    return {
+      id: page.id,
+      title: getText(props["Title"]?.title ?? []),
+      issuer: getText(props["Issuer"]?.rich_text ?? []),
+      year: getText(props["Year"]?.rich_text ?? []),
+      icon: getText(props["Icon"]?.rich_text ?? []) || "🏅",
+      link: props["Link"]?.url ?? null,
+    };
+  });
+}
 
 export interface BlogPost {
   id: string;

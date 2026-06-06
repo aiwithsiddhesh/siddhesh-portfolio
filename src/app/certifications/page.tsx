@@ -1,10 +1,13 @@
 import SectionHeader from "@/components/SectionHeader";
 import RevealWrapper from "@/components/RevealWrapper";
-import { certifications } from "@/lib/data";
+import { getCertifications } from "@/lib/notion";
 
 export const metadata = { title: "Certifications — Siddhesh Parab" };
+export const revalidate = 3600;
 
-export default function CertificationsPage() {
+export default async function CertificationsPage() {
+  const certifications = await getCertifications().catch(() => []);
+
   return (
     <div className="pt-20">
       <section className="py-24" style={{ background: "var(--cream)" }}>
@@ -15,7 +18,7 @@ export default function CertificationsPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {certifications.map((c, i) => (
-              <RevealWrapper key={i} delay={i * 60}>
+              <RevealWrapper key={c.id} delay={i * 60}>
                 <div
                   className="p-6 rounded-2xl flex gap-4 items-start transition-all duration-300 hover:-translate-y-1 h-full"
                   style={{ background: "#fff", boxShadow: "0 10px 40px rgba(22,26,40,0.08)" }}
@@ -48,7 +51,6 @@ export default function CertificationsPage() {
             ))}
           </div>
 
-          {/* Anthropic badge */}
           <RevealWrapper delay={200}>
             <div
               className="mt-12 p-8 rounded-2xl text-center border-t-4"
@@ -58,7 +60,7 @@ export default function CertificationsPage() {
                 className="text-2xl font-black uppercase mb-2"
                 style={{ fontFamily: "var(--font-oswald, sans-serif)", color: "var(--lime)" }}
               >
-                7× Certified
+                {certifications.length}× Certified
               </p>
               <p className="text-sm" style={{ color: "#a0aec0" }}>
                 5× Anthropic · 2× DeepLearning.AI — all with verify links
