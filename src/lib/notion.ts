@@ -7,6 +7,23 @@ const n2m = new NotionToMarkdown({ notionClient: notion as any });
 const DB_ID = process.env.NOTION_BLOG_DATABASE_ID!;
 const CERTS_DB_ID = process.env.NOTION_CERTS_DATABASE_ID!;
 
+async function queryNotionDatabase(databaseId: string, params: any = {}): Promise<any> {
+  const response = await fetch(`https://api.notion.com/v1/databases/${databaseId}/query`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${process.env.NOTION_API_KEY}`,
+      "Notion-Version": "2022-06-28",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(params),
+  });
+  if (!response.ok) {
+    console.error("Notion query failed:", response.status, await response.text());
+    throw new Error(`Notion API error: ${response.status}`);
+  }
+  return response.json();
+}
+
 export interface Certification {
   id: string;
   title: string;
@@ -17,8 +34,7 @@ export interface Certification {
 }
 
 export async function getCertifications(): Promise<Certification[]> {
-  const response = await (notion as any).databases.query({
-    database_id: CERTS_DB_ID,
+  const response = await queryNotionDatabase(CERTS_DB_ID, {
     filter: { property: "Published", checkbox: { equals: true } },
     sorts: [{ property: "Year", direction: "ascending" }],
   });
@@ -83,8 +99,7 @@ function extractPost(page: any): BlogPost {
 }
 
 export async function getAllPosts(): Promise<BlogPost[]> {
-  const response = await (notion as any).databases.query({
-    database_id: DB_ID,
+  const response = await queryNotionDatabase(DB_ID, {
     filter: {
       property: "Published",
       checkbox: { equals: true },
@@ -97,8 +112,7 @@ export async function getAllPosts(): Promise<BlogPost[]> {
 
 export async function getPostBySlug(slug: string): Promise<BlogPostWithContent | null> {
   // try matching by Slug field first
-  const response = await (notion as any).databases.query({
-    database_id: DB_ID,
+  const response = await queryNotionDatabase(DB_ID, {
     filter: {
       and: [
         { property: "Published", checkbox: { equals: true } },
@@ -111,8 +125,7 @@ export async function getPostBySlug(slug: string): Promise<BlogPostWithContent |
 
   // fallback: scan all published and match auto-slug from title
   if (!page) {
-    const all = await (notion as any).databases.query({
-      database_id: DB_ID,
+    const all = await queryNotionDatabase(DB_ID, {
       filter: { property: "Published", checkbox: { equals: true } },
     });
     page = (all.results ?? []).find((p: any) => extractPost(p).slug === slug);
