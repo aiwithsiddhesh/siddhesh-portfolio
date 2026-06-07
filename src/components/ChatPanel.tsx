@@ -8,7 +8,6 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   provider?: string;
-  toolsUsed?: string[];
 }
 
 function getOrCreateSessionId(): string {
@@ -26,64 +25,42 @@ function buildTranscript(msgs: Message[]): string {
     .join("\n\n");
 }
 
-export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [leadPageId, setLeadPageId] = useState("");
+export default function ChatPanel({ onClose }: { onClose?: () => void }) {
+  const [messages, setMessages]     = useState<Message[]>([]);
+  const [input, setInput]           = useState("");
+  const [isLoading, setIsLoading]   = useState(false);
 
-  // Lead capture state
-  const [showLeadCard, setShowLeadCard] = useState(false);
+  const [showLeadCard, setShowLeadCard]   = useState(false);
   const [leadDismissed, setLeadDismissed] = useState(false);
   const [leadSubmitted, setLeadSubmitted] = useState(false);
-  const [leadName, setLeadName] = useState("");
-  const [leadEmail, setLeadEmail] = useState("");
+  const [leadName, setLeadName]     = useState("");
+  const [leadEmail, setLeadEmail]   = useState("");
   const [leadCompany, setLeadCompany] = useState("");
   const [leadLoading, setLeadLoading] = useState(false);
 
-  // Use a ref for sessionId so it's always current in async callbacks (no stale closure)
-  const sessionIdRef = useRef<string>("");
+  const sessionIdRef  = useRef<string>("");
   const leadPageIdRef = useRef<string>("");
-
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const dismissed = sessionStorage.getItem("lead_v2_dismissed") === "true";
-    const submitted = sessionStorage.getItem("lead_v2_submitted") === "true";
-    setLeadDismissed(dismissed);
-    setLeadSubmitted(submitted);
     sessionIdRef.current = getOrCreateSessionId();
+    setLeadDismissed(sessionStorage.getItem("lead_v2_dismissed") === "true");
+    setLeadSubmitted(sessionStorage.getItem("lead_v2_submitted") === "true");
+    // Auto-focus input on open
+    setTimeout(() => inputRef.current?.focus(), 300);
   }, []);
 
-  // Keep leadPageIdRef in sync
   useEffect(() => {
-    leadPageIdRef.current = leadPageId;
-  }, [leadPageId]);
-
-  const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
   }, [messages, isLoading, showLeadCard]);
 
-  // Show lead card after first bot reply, once per session
   useEffect(() => {
-    const hasFirstBotReply = messages.some(m => m.role === "assistant");
-    const alreadySeen = leadDismissed || leadSubmitted;
-    if (hasFirstBotReply && !alreadySeen) {
-      setShowLeadCard(true);
-    }
+    const hasBotReply = messages.some(m => m.role === "assistant");
+    if (hasBotReply && !leadDismissed && !leadSubmitted) setShowLeadCard(true);
   }, [messages, leadDismissed, leadSubmitted]);
 
-  const clearChat = () => {
-    setMessages([]);
-    setInput("");
-    setShowLeadCard(false);
-  };
-
-  const updateLeadWithTranscript = (allMessages: Message[]) => {
+  const updateLeadTranscript = (allMsgs: Message[]) => {
     const pid = leadPageIdRef.current;
     if (!pid) return;
     fetch("/api/lead", {
@@ -91,23 +68,22 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         pageId: pid,
-        chatLog: buildTranscript(allMessages),
-        messageCount: allMessages.length,
+        chatLog: buildTranscript(allMsgs),
+        messageCount: allMsgs.length,
       }),
-    }).catch(err => console.error("Transcript update error:", err));
+    }).catch(() => {});
   };
 
   const handleSend = async (text: string) => {
-    if (!text.trim()) return;
+    if (!text.trim() || isLoading) return;
 
     const sid = sessionIdRef.current;
-    const newMessages: Message[] = [...messages, { role: "user", content: text }];
-    setMessages(newMessages);
+    const newMsgs: Message[] = [...messages, { role: "user", content: text }];
+    setMessages(newMsgs);
     setInput("");
     setIsLoading(true);
 
-    // On first message: create lead record with session ID
-    if (newMessages.length === 1 && !leadPageIdRef.current) {
+    if (newMsgs.length === 1 && !leadPageIdRef.current) {
       fetch("/api/lead", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -115,43 +91,28 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
           name: "Anonymous Visitor",
           firstQuestion: text,
           sessionId: sid,
-          chatLog: buildTranscript(newMessages),
+          chatLog: buildTranscript(newMsgs),
           messageCount: 1,
         }),
       })
-        .then(res => res.json())
-        .then(data => {
-          if (data.id) {
-            setLeadPageId(data.id);
-            leadPageIdRef.current = data.id;
-          }
-        })
-        .catch(err => console.error("Auto-lead error:", err));
+        .then(r => r.json())
+        .then(d => { if (d.id) leadPageIdRef.current = d.id; })
+        .catch(() => {});
     }
 
     try {
-      const response = await fetch("/api/chat", {
+      const res  = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text, history: messages }),
       });
-
-      const data = await response.json();
-      const assistantMsg: Message = {
-        role: "assistant",
-        content: data.reply,
-        provider: data.provider,
-        toolsUsed: data.toolsUsed,
-      };
-      const finalMessages = [...newMessages, assistantMsg];
-      setMessages(finalMessages);
-
-      // Update lead record with full transcript after every bot reply
-      updateLeadWithTranscript(finalMessages);
-    } catch (error) {
-      console.error(error);
-      const errorMessages = [...newMessages, { role: "assistant" as const, content: "Sorry, I'm having trouble connecting right now." }];
-      setMessages(errorMessages);
+      const data = await res.json();
+      const botMsg: Message = { role: "assistant", content: data.reply, provider: data.provider };
+      const final = [...newMsgs, botMsg];
+      setMessages(final);
+      updateLeadTranscript(final);
+    } catch {
+      setMessages([...newMsgs, { role: "assistant", content: "Sorry, having trouble connecting right now." }]);
     } finally {
       setIsLoading(false);
     }
@@ -160,7 +121,6 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
   const handleLeadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!leadName && !leadEmail && !leadCompany) return;
-
     setLeadLoading(true);
     try {
       await fetch("/api/lead", {
@@ -175,48 +135,44 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
           messageCount: messages.length,
         }),
       });
-    } catch (err) {
-      console.error("Lead submit error:", err);
-    } finally {
-      setLeadLoading(false);
-      setLeadSubmitted(true);
-      setShowLeadCard(false);
-      sessionStorage.setItem("lead_v2_submitted", "true");
-    }
-  };
-
-  const handleLeadDismiss = () => {
-    setLeadDismissed(true);
+    } catch {}
+    setLeadLoading(false);
+    setLeadSubmitted(true);
     setShowLeadCard(false);
-    sessionStorage.setItem("lead_v2_dismissed", "true");
+    sessionStorage.setItem("lead_v2_submitted", "true");
   };
 
   const starterChips = [
     "Walk me through your AI experience",
     "What's your most impactful project?",
     "Why should we hire you?",
+    "Can we schedule a call?",
   ];
 
-  if (isOpen !== undefined && !isOpen) return null;
-
   return (
-    <div className={`flex flex-col overflow-hidden bg-white ${isOpen !== undefined ? "w-full sm:w-[380px] h-[100dvh] sm:h-[540px] fixed sm:absolute sm:bottom-[80px] sm:right-0 sm:rounded-2xl shadow-2xl sm:border border-gray-200 z-50" : "w-full h-full relative"}`}>
+    <div className="flex flex-col h-full bg-white">
 
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-4 shrink-0" style={{ background: "var(--navy)", color: "var(--cream)" }}>
+      {/* ── Header ── */}
+      <div
+        className="flex items-center justify-between px-5 py-4 shrink-0"
+        style={{ background: "var(--navy)", color: "var(--cream)" }}
+      >
         <div>
-          <h2 className="font-bold uppercase tracking-wider text-lg leading-tight" style={{ fontFamily: "var(--font-oswald, sans-serif)" }}>
+          <h2
+            className="font-black uppercase tracking-wider text-xl leading-tight"
+            style={{ fontFamily: "var(--font-oswald, sans-serif)" }}
+          >
             Chat with Siddhesh
           </h2>
           <a
             href="https://calendly.com/parab-ssp-siddhesh"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-widest mt-0.5 hover:opacity-80 transition-opacity"
+            className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-widest mt-0.5 hover:opacity-75 transition-opacity"
             style={{ color: "var(--lime)" }}
           >
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
             </svg>
             Book a Call
           </a>
@@ -224,8 +180,7 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
         <div className="flex items-center gap-1">
           {messages.length > 0 && (
             <button
-              onClick={clearChat}
-              title="Clear chat"
+              onClick={() => { setMessages([]); setShowLeadCard(false); }}
               className="p-2 hover:bg-white/10 rounded-full transition-colors text-xs font-semibold flex items-center gap-1"
               style={{ color: "var(--lime)" }}
             >
@@ -239,23 +194,40 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
             </button>
           )}
           {onClose && (
-            <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors text-xl font-bold" style={{ color: "var(--lime)" }}>
-              &times;
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-white/10 rounded-full transition-colors"
+              style={{ color: "var(--lime)" }}
+              aria-label="Close chat"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
             </button>
           )}
         </div>
       </div>
 
-      {/* Message List */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 pb-20">
+      {/* ── Messages ── */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 pb-24" style={{ background: "#f7f7f2" }}>
+
         {messages.length === 0 ? (
-          <div className="h-full flex flex-col justify-end pb-4 space-y-2">
-            {starterChips.map((chip, idx) => (
+          <div className="h-full flex flex-col justify-end pb-2 space-y-2">
+            <p className="text-xs font-bold uppercase tracking-widest text-center mb-2" style={{ color: "var(--navy)", opacity: 0.4 }}>
+              Ask me anything
+            </p>
+            {starterChips.map((chip, i) => (
               <button
-                key={idx}
+                key={chip}
                 onClick={() => handleSend(chip)}
-                className="text-left p-3 rounded-xl border transition-colors hover:bg-gray-100 text-sm font-medium"
-                style={{ borderColor: "var(--lime)", color: "var(--navy)" }}
+                className="chip-in text-left px-4 py-3 rounded-2xl border-2 text-sm font-semibold transition-all hover:scale-[1.02] active:scale-[0.98] hover:shadow-md"
+                style={{
+                  borderColor: "var(--lime)",
+                  color: "var(--navy)",
+                  background: "#fff",
+                  animationDelay: `${i * 60}ms`,
+                  opacity: 0,
+                }}
               >
                 {chip}
               </button>
@@ -263,30 +235,45 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
           </div>
         ) : (
           <>
-            {messages.map((msg, idx) => (
-              <div key={idx} className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}>
+            {messages.map((msg, i) => (
+              <div
+                key={i}
+                className={`flex flex-col ${msg.role === "user" ? "items-end msg-right" : "items-start msg-left"}`}
+              >
                 {msg.role === "assistant" && (
-                  <span className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: "var(--lime)" }}>
+                  <span
+                    className="text-[11px] font-black uppercase tracking-widest mb-1 px-1"
+                    style={{ color: "var(--lime)" }}
+                  >
                     Siddhesh
                   </span>
                 )}
                 <div
-                  className={`max-w-[85%] p-3 rounded-2xl text-sm leading-relaxed markdown-content ${
+                  className={`max-w-[88%] px-4 py-3 text-sm leading-relaxed markdown-content ${
                     msg.role === "user"
-                      ? "rounded-tr-sm font-medium shadow-sm"
-                      : "bg-white border border-gray-100 rounded-tl-sm shadow-sm"
+                      ? "rounded-3xl rounded-tr-sm shadow-sm font-medium"
+                      : "rounded-3xl rounded-tl-sm shadow-sm bg-white border border-gray-100"
                   }`}
-                  style={msg.role === "user" ? { background: "var(--cream)", color: "var(--navy)" } : { color: "#333" }}
+                  style={
+                    msg.role === "user"
+                      ? { background: "var(--navy)", color: "var(--cream)" }
+                      : { color: "#1a1a2e" }
+                  }
                 >
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{
-                      p: ({ children }) => <p className="mb-4 last:mb-0 block">{children}</p>,
-                      ul: ({ children }) => <ul className="list-disc ml-6 mb-4 space-y-2 block">{children}</ul>,
-                      ol: ({ children }) => <ol className="list-decimal ml-6 mb-4 space-y-2 block">{children}</ol>,
-                      li: ({ children }) => <li className="mb-1">{children}</li>,
-                      strong: ({ children }) => <strong className="font-black text-black inline">{children}</strong>,
-                      b: ({ children }) => <b className="font-black text-black inline">{children}</b>,
+                      p:      ({ children }) => <p className="mb-3 last:mb-0 block">{children}</p>,
+                      ul:     ({ children }) => <ul className="list-disc ml-5 mb-3 space-y-1 block">{children}</ul>,
+                      ol:     ({ children }) => <ol className="list-decimal ml-5 mb-3 space-y-1 block">{children}</ol>,
+                      li:     ({ children }) => <li className="mb-0.5">{children}</li>,
+                      strong: ({ children }) => <strong className="font-black inline" style={{ color: msg.role === "user" ? "var(--lime)" : "var(--navy)" }}>{children}</strong>,
+                      a:      ({ href, children }) => (
+                        <a href={href} target="_blank" rel="noopener noreferrer"
+                          className="underline font-bold" style={{ color: "var(--lime)" }}>
+                          {children}
+                        </a>
+                      ),
                     }}
                   >
                     {msg.content}
@@ -300,58 +287,47 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
               </div>
             ))}
 
-            {/* Lead Capture Card */}
+            {/* Lead card */}
             {showLeadCard && (
               <div
-                className="rounded-2xl border-2 p-4 space-y-3 shadow-sm"
-                style={{ borderColor: "var(--lime)", background: "#f9fef0" }}
+                className="lead-card-in rounded-3xl border-2 p-5 space-y-3 shadow-lg"
+                style={{ borderColor: "var(--lime)", background: "#f5fde0", opacity: 0 }}
               >
                 <div>
-                  <p className="text-sm font-bold" style={{ color: "var(--navy)" }}>
+                  <p className="text-sm font-black uppercase tracking-wide" style={{ color: "var(--navy)" }}>
                     Want Siddhesh to follow up? 👋
                   </p>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    All fields are optional. Siddhesh will personally review this.
-                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">All fields optional — he'll personally review this.</p>
                 </div>
                 <form onSubmit={handleLeadSubmit} className="space-y-2">
-                  <input
-                    type="text"
-                    placeholder="Your name"
-                    value={leadName}
-                    onChange={e => setLeadName(e.target.value)}
-                    className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:border-transparent"
-                    style={{ "--tw-ring-color": "var(--lime)" } as any}
-                  />
-                  <input
-                    type="text"
-                    placeholder="Email or LinkedIn URL"
-                    value={leadEmail}
-                    onChange={e => setLeadEmail(e.target.value)}
-                    className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:border-transparent"
-                    style={{ "--tw-ring-color": "var(--lime)" } as any}
-                  />
-                  <input
-                    type="text"
-                    placeholder="Company (optional)"
-                    value={leadCompany}
-                    onChange={e => setLeadCompany(e.target.value)}
-                    className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:border-transparent"
-                    style={{ "--tw-ring-color": "var(--lime)" } as any}
-                  />
+                  {[
+                    { placeholder: "Your name", value: leadName, set: setLeadName, type: "text" },
+                    { placeholder: "Email or LinkedIn URL", value: leadEmail, set: setLeadEmail, type: "text" },
+                    { placeholder: "Company (optional)", value: leadCompany, set: setLeadCompany, type: "text" },
+                  ].map(f => (
+                    <input
+                      key={f.placeholder}
+                      type={f.type}
+                      placeholder={f.placeholder}
+                      value={f.value}
+                      onChange={e => f.set(e.target.value)}
+                      className="w-full text-sm px-4 py-2.5 rounded-xl border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:border-transparent transition-all"
+                      style={{ "--tw-ring-color": "var(--lime)" } as any}
+                    />
+                  ))}
                   <div className="flex gap-2 pt-1">
                     <button
                       type="submit"
                       disabled={leadLoading || (!leadName && !leadEmail && !leadCompany)}
-                      className="flex-1 py-2 rounded-lg text-sm font-bold transition-all disabled:opacity-50"
+                      className="flex-1 py-2.5 rounded-xl text-sm font-black uppercase tracking-wider transition-all disabled:opacity-40 hover:opacity-90 active:scale-95"
                       style={{ background: "var(--navy)", color: "var(--lime)" }}
                     >
                       {leadLoading ? "Sending..." : "Send"}
                     </button>
                     <button
                       type="button"
-                      onClick={handleLeadDismiss}
-                      className="flex-1 py-2 rounded-lg text-sm font-medium text-gray-500 border border-gray-200 bg-white hover:bg-gray-50 transition-all"
+                      onClick={() => { setLeadDismissed(true); setShowLeadCard(false); sessionStorage.setItem("lead_v2_dismissed", "true"); }}
+                      className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-gray-500 border border-gray-200 bg-white hover:bg-gray-50 transition-all active:scale-95"
                     >
                       Maybe later
                     </button>
@@ -360,46 +336,53 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
               </div>
             )}
 
-            {leadSubmitted && messages.some(m => m.role === "assistant") && (
-              <div className="text-center py-2">
-                <span className="text-xs text-gray-400 font-medium">
-                  ✅ Thanks! Siddhesh will personally review this and may reach out.
-                </span>
-              </div>
+            {leadSubmitted && (
+              <p className="text-center text-xs text-gray-400 font-semibold py-1">
+                ✅ Thanks! Siddhesh will personally review and may reach out.
+              </p>
             )}
           </>
         )}
 
+        {/* Typing indicator */}
         {isLoading && (
-          <div className="flex flex-col items-start">
-            <span className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: "var(--lime)" }}>
+          <div className="flex flex-col items-start msg-left">
+            <span className="text-[11px] font-black uppercase tracking-widest mb-1 px-1" style={{ color: "var(--lime)" }}>
               Siddhesh
             </span>
-            <div className="bg-white border border-gray-100 p-4 rounded-2xl rounded-tl-sm shadow-sm flex gap-1">
-              <div className="w-2 h-2 rounded-full bg-gray-300 animate-bounce" style={{ animationDelay: "0ms" }}></div>
-              <div className="w-2 h-2 rounded-full bg-gray-300 animate-bounce" style={{ animationDelay: "150ms" }}></div>
-              <div className="w-2 h-2 rounded-full bg-gray-300 animate-bounce" style={{ animationDelay: "300ms" }}></div>
+            <div className="bg-white border border-gray-100 px-5 py-4 rounded-3xl rounded-tl-sm shadow-sm flex gap-1.5 items-center">
+              {[0, 150, 300].map(d => (
+                <div key={d} className="w-2 h-2 rounded-full animate-bounce" style={{ background: "var(--lime)", animationDelay: `${d}ms` }} />
+              ))}
             </div>
           </div>
         )}
+
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Form */}
-      <div className="absolute bottom-0 left-0 right-0 p-3 bg-white border-t border-gray-100 shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
-        <form onSubmit={(e) => { e.preventDefault(); handleSend(input); }} className="flex gap-2">
+      {/* ── Input ── */}
+      <div
+        className="absolute bottom-0 left-0 right-0 px-4 py-3 shrink-0 border-t border-gray-100"
+        style={{ background: "rgba(255,255,255,0.95)", backdropFilter: "blur(12px)" }}
+      >
+        <form
+          onSubmit={e => { e.preventDefault(); handleSend(input); }}
+          className="flex gap-2 items-center"
+        >
           <input
+            ref={inputRef}
             type="text"
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={e => setInput(e.target.value)}
             placeholder="Ask me anything..."
-            className="flex-1 bg-gray-50 border border-gray-200 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:border-transparent transition-all"
+            className="flex-1 bg-gray-100 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:bg-white transition-all"
             style={{ "--tw-ring-color": "var(--lime)" } as any}
           />
           <button
             type="submit"
             disabled={!input.trim() || isLoading}
-            className="w-10 h-10 flex items-center justify-center rounded-full transition-all disabled:opacity-50 disabled:hover:scale-100 hover:scale-105 shrink-0"
+            className="w-11 h-11 flex items-center justify-center rounded-full transition-all disabled:opacity-40 hover:scale-105 active:scale-95 shrink-0"
             style={{ background: "var(--lime)", color: "var(--navy)" }}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
