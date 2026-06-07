@@ -68,10 +68,31 @@ async function tryGemini(apiKey: string, contents: any[]): Promise<string | null
   return null;
 }
 
+const CODE_INTENT = /show me|code|implement|example of|how do you|snippet|source|github|repo|script|function|class|how did you build/i;
+
+async function getCodeSnippets(query: string): Promise<string> {
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+    const res = await fetch(`${baseUrl}/api/code-search`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query, limit: 3 }),
+    });
+    const data = await res.json();
+    if (!data.results?.length) return "";
+    return data.results.map((r: any) =>
+      `**${r.repo}** — \`${r.filepath}\`\n\`\`\`${r.language}\n${r.content.slice(0, 300)}...\n\`\`\``
+    ).join("\n\n");
+  } catch {
+    return "";
+  }
+}
+
 export async function POST(req: Request) {
   const { message, history = [] } = await req.json();
 
   const context = getFullContext();
+  const isCodeIntent = CODE_INTENT.test(message);
 
   // Build Gemini contents: history (clean, no context injection) + current message with context
   // Context is injected only once in the current user turn, not repeated in history
@@ -95,7 +116,10 @@ export async function POST(req: Request) {
   if (apiKey) {
     const reply = await tryGemini(apiKey, contents);
     if (reply) {
-      return Response.json({ reply, provider: "Gemini", toolsUsed: [] });
+      const enriched = isCodeIntent
+        ? `${reply}\n\n[🔍 Browse actual code snippets →](/code?q=${encodeURIComponent(message)})`
+        : reply;
+      return Response.json({ reply: enriched, provider: "Gemini", toolsUsed: [], codeIntent: isCodeIntent });
     }
     console.error("All Gemini models failed, falling back to Groq");
   }
@@ -115,11 +139,11 @@ export async function POST(req: Request) {
       ],
     });
 
-    return Response.json({
-      reply: completion.choices[0]?.message?.content || "No response generated.",
-      provider: "Groq",
-      toolsUsed: [],
-    });
+    const groqReply = completion.choices[0]?.message?.content || "No response generated.";
+    const groqEnriched = isCodeIntent
+      ? `${groqReply}\n\n[🔍 Browse actual code snippets →](/code?q=${encodeURIComponent(message)})`
+      : groqReply;
+    return Response.json({ reply: groqEnriched, provider: "Groq", toolsUsed: [], codeIntent: isCodeIntent });
   } catch (error) {
     console.error("Groq failed, falling back to Cohere:", error);
   }
@@ -140,7 +164,10 @@ export async function POST(req: Request) {
       documents: [{ text: ragContext }],
     });
 
-    return Response.json({ reply: response.text, provider: "cohere", toolsUsed: [] });
+    const cohereEnriched = isCodeIntent
+      ? `${response.text}\n\n[🔍 Browse actual code snippets →](/code?q=${encodeURIComponent(message)})`
+      : response.text;
+    return Response.json({ reply: cohereEnriched, provider: "cohere", toolsUsed: [], codeIntent: isCodeIntent });
   } catch (error) {
     console.error("Cohere failed:", error);
   }

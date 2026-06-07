@@ -18,7 +18,11 @@
       "Bash(vercel *)",
       "Bash(git -C E:/dev/siddhesh-portfolio status --porcelain)",
       "Bash(git *)",
-      "mcp__notion__notion-update-data-source"
+      "mcp__notion__notion-update-data-source",
+      "mcp__claude_ai_Supabase__list_projects",
+      "mcp__claude_ai_Supabase__get_project",
+      "mcp__claude_ai_Supabase__get_organization",
+      "Bash(npm list *)"
     ]
   }
 }
