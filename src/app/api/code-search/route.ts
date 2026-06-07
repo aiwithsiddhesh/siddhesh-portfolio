@@ -3,11 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!
-);
-
 async function embedQuery(query: string): Promise<number[]> {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${process.env.GEMINI_API_KEY}`,
@@ -29,6 +24,11 @@ export async function POST(req: NextRequest) {
   try {
     const { query, limit = 5 } = await req.json();
     if (!query?.trim()) return NextResponse.json({ results: [] });
+
+    const supabase = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    );
 
     const embedding = await embedQuery(query);
 
