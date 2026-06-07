@@ -22,7 +22,14 @@
       "mcp__claude_ai_Supabase__list_projects",
       "mcp__claude_ai_Supabase__get_project",
       "mcp__claude_ai_Supabase__get_organization",
-      "Bash(npm list *)"
+      "Bash(npm list *)",
+      "mcp__claude_ai_Supabase__get_publishable_keys",
+      "mcp__plugin_vercel_vercel__get_deployment_build_logs",
+      "mcp__claude_ai_Supabase__execute_sql",
+      "mcp__claude_ai_Supabase__create_project",
+      "mcp__claude_ai_Supabase__apply_migration",
+      "mcp__claude_ai_Supabase__get_project_url",
+      "Bash(npx vercel *)"
     ]
   }
 }
