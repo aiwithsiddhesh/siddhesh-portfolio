@@ -8,6 +8,7 @@ const DB_ID = process.env.NOTION_BLOG_DATABASE_ID!;
 const CERTS_DB_ID = process.env.NOTION_CERTS_DATABASE_ID!;
 const ACHIEVEMENTS_DB_ID = process.env.NOTION_ACHIEVEMENTS_DATABASE_ID!;
 const STATS_DB_ID = process.env.NOTION_STATS_DATABASE_ID!;
+const EXPERIENCE_DB_ID = process.env.NOTION_EXPERIENCE_DATABASE_ID!;
 
 async function queryNotionDatabase(databaseId: string, params: any = {}): Promise<any> {
   const response = await fetch(`https://api.notion.com/v1/databases/${databaseId}/query`, {
@@ -116,6 +117,42 @@ export async function getStats(): Promise<Stat[]> {
       value: props["Value"]?.number ?? 0,
       suffix: getText(props["Suffix"]?.rich_text ?? []),
       label: getText(props["Label"]?.title ?? []),
+    };
+  });
+}
+
+export interface JobExperience {
+  id: string;
+  title: string;
+  company: string;
+  badge: string;
+  period: string;
+  location: string;
+  summary: string;
+  bullets: string[];
+  stack: string[];
+}
+
+export async function getExperience(): Promise<JobExperience[]> {
+  if (!EXPERIENCE_DB_ID) return [];
+  const response = await queryNotionDatabase(EXPERIENCE_DB_ID, {
+    filter: { property: "Published", checkbox: { equals: true } },
+    sorts: [{ property: "Order", direction: "ascending" }],
+  });
+
+  return (response.results ?? []).map((page: any) => {
+    const props = page.properties ?? {};
+    const bulletsText = getText(props["Bullets"]?.rich_text ?? []);
+    return {
+      id: page.id,
+      title: getText(props["Title"]?.title ?? []),
+      company: getText(props["Company"]?.rich_text ?? []),
+      badge: getText(props["Badge"]?.rich_text ?? []),
+      period: getText(props["Period"]?.rich_text ?? []),
+      location: getText(props["Location"]?.rich_text ?? []),
+      summary: getText(props["Summary"]?.rich_text ?? []),
+      bullets: bulletsText ? bulletsText.split("\n").map(b => b.trim()).filter(Boolean) : [],
+      stack: (props["Stack"]?.multi_select ?? []).map((s: any) => s.name),
     };
   });
 }

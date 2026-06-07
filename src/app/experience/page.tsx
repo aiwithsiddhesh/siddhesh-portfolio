@@ -1,10 +1,13 @@
 import SectionHeader from "@/components/SectionHeader";
 import RevealWrapper from "@/components/RevealWrapper";
-import { experience } from "@/lib/data";
+import { getExperience } from "@/lib/notion";
 
 export const metadata = { title: "Experience — Siddhesh Parab" };
+export const dynamic = "force-dynamic";
 
-export default function ExperiencePage() {
+export default async function ExperiencePage() {
+  const experience = await getExperience().catch(() => []);
+
   return (
     <div className="pt-20">
       <section className="py-24" style={{ background: "var(--cream)" }}>
@@ -15,7 +18,7 @@ export default function ExperiencePage() {
 
           <div className="relative pl-8 border-l-2" style={{ borderColor: "var(--navy)" }}>
             {experience.map((job, i) => (
-              <div key={i} className="relative mb-12 last:mb-0">
+              <div key={job.id} className="relative mb-12 last:mb-0">
                 {/* Timeline dot */}
                 <div
                   className="absolute -left-[37px] top-0 w-3.5 h-3.5 rounded-full border-2"
