@@ -11,11 +11,25 @@ interface Message {
   toolsUsed?: string[];
 }
 
+function getOrCreateSessionId(): string {
+  let sid = sessionStorage.getItem("chat_session_id");
+  if (!sid) {
+    sid = `sid_${Math.random().toString(36).substring(2, 11)}_${Date.now()}`;
+    sessionStorage.setItem("chat_session_id", sid);
+  }
+  return sid;
+}
+
+function buildTranscript(msgs: Message[]): string {
+  return msgs
+    .map(m => `${m.role === "user" ? "Visitor" : "Siddhesh"}: ${m.content}`)
+    .join("\n\n");
+}
+
 export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [sessionId, setSessionId] = useState("");
   const [leadPageId, setLeadPageId] = useState("");
 
   // Lead capture state
@@ -27,23 +41,24 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
   const [leadCompany, setLeadCompany] = useState("");
   const [leadLoading, setLeadLoading] = useState(false);
 
+  // Use a ref for sessionId so it's always current in async callbacks (no stale closure)
+  const sessionIdRef = useRef<string>("");
+  const leadPageIdRef = useRef<string>("");
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Restore lead state from sessionStorage on mount
   useEffect(() => {
     const dismissed = sessionStorage.getItem("lead_v2_dismissed") === "true";
     const submitted = sessionStorage.getItem("lead_v2_submitted") === "true";
     setLeadDismissed(dismissed);
     setLeadSubmitted(submitted);
-
-    // Initialize or restore session ID
-    let sid = sessionStorage.getItem("chat_session_id");
-    if (!sid) {
-      sid = `sid_${Math.random().toString(36).substring(2, 11)}_${Date.now()}`;
-      sessionStorage.setItem("chat_session_id", sid);
-    }
-    setSessionId(sid);
+    sessionIdRef.current = getOrCreateSessionId();
   }, []);
+
+  // Keep leadPageIdRef in sync
+  useEffect(() => {
+    leadPageIdRef.current = leadPageId;
+  }, [leadPageId]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -68,44 +83,51 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
     setShowLeadCard(false);
   };
 
+  const updateLeadWithTranscript = (allMessages: Message[]) => {
+    const pid = leadPageIdRef.current;
+    if (!pid) return;
+    fetch("/api/lead", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        pageId: pid,
+        chatLog: buildTranscript(allMessages),
+        messageCount: allMessages.length,
+      }),
+    }).catch(err => console.error("Transcript update error:", err));
+  };
+
   const handleSend = async (text: string) => {
     if (!text.trim()) return;
 
+    const sid = sessionIdRef.current;
     const newMessages: Message[] = [...messages, { role: "user", content: text }];
     setMessages(newMessages);
     setInput("");
     setIsLoading(true);
 
-    // If this is the FIRST user message, create a lead record in Notion immediately
-    if (newMessages.length === 1 && !leadPageId) {
+    // On first message: create lead record with session ID
+    if (newMessages.length === 1 && !leadPageIdRef.current) {
       fetch("/api/lead", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          name: "Anonymous Visitor", 
-          firstQuestion: text 
+        body: JSON.stringify({
+          name: "Anonymous Visitor",
+          firstQuestion: text,
+          sessionId: sid,
+          chatLog: buildTranscript(newMessages),
+          messageCount: 1,
         }),
       })
-      .then(res => res.json())
-      .then(data => {
-        if (data.id) setLeadPageId(data.id);
-      })
-      .catch(err => console.error("Auto-lead error:", err));
+        .then(res => res.json())
+        .then(data => {
+          if (data.id) {
+            setLeadPageId(data.id);
+            leadPageIdRef.current = data.id;
+          }
+        })
+        .catch(err => console.error("Auto-lead error:", err));
     }
-
-    // Log user message to Notion
-    fetch("/api/chat-log", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId, role: "user", content: text }),
-    })
-    .then(async res => {
-      if (!res.ok) {
-        const errorData = await res.json();
-        console.error("NOTION LOG ERROR (User Msg):", errorData);
-      }
-    })
-    .catch(err => console.error("Log error:", err));
 
     try {
       const response = await fetch("/api/chat", {
@@ -121,29 +143,15 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
         provider: data.provider,
         toolsUsed: data.toolsUsed,
       };
-      setMessages([...newMessages, assistantMsg]);
+      const finalMessages = [...newMessages, assistantMsg];
+      setMessages(finalMessages);
 
-      // Log assistant message to Notion
-      fetch("/api/chat-log", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          sessionId, 
-          role: "assistant", 
-          content: data.reply, 
-          provider: data.provider 
-        }),
-      })
-      .then(async res => {
-        if (!res.ok) {
-          const errorData = await res.json();
-          console.error("NOTION LOG ERROR (Bot Msg):", errorData);
-        }
-      })
-      .catch(err => console.error("Log error:", err));
+      // Update lead record with full transcript after every bot reply
+      updateLeadWithTranscript(finalMessages);
     } catch (error) {
       console.error(error);
-      setMessages([...newMessages, { role: "assistant", content: "Sorry, I'm having trouble connecting right now." }]);
+      const errorMessages = [...newMessages, { role: "assistant" as const, content: "Sorry, I'm having trouble connecting right now." }];
+      setMessages(errorMessages);
     } finally {
       setIsLoading(false);
     }
@@ -154,16 +162,17 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
     if (!leadName && !leadEmail && !leadCompany) return;
 
     setLeadLoading(true);
-
     try {
       await fetch("/api/lead", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          pageId: leadPageId, // Update existing record
-          name: leadName,
-          email: leadEmail,
-          company: leadCompany,
+          pageId: leadPageIdRef.current,
+          name: leadName || undefined,
+          email: leadEmail || undefined,
+          company: leadCompany || undefined,
+          chatLog: buildTranscript(messages),
+          messageCount: messages.length,
         }),
       });
     } catch (err) {
@@ -255,7 +264,7 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
                   }`}
                   style={msg.role === "user" ? { background: "var(--cream)", color: "var(--navy)" } : { color: "#333" }}
                 >
-                  <ReactMarkdown 
+                  <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{
                       p: ({ children }) => <p className="mb-4 last:mb-0 block">{children}</p>,
@@ -269,19 +278,10 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
                     {msg.content}
                   </ReactMarkdown>
                 </div>
-                {msg.role === "assistant" && (
-                  <div className="flex items-center gap-2 mt-1 px-1">
-                    {msg.provider && msg.provider !== "none" && (
-                      <span className="text-[10px] uppercase font-bold text-gray-400">
-                        via {msg.provider}
-                      </span>
-                    )}
-                    {msg.toolsUsed && msg.toolsUsed.length > 0 && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-200 text-gray-600 font-medium">
-                        looked up: {msg.toolsUsed.map(t => t.replace("search_", "").replace("get_", "")).join(", ")}
-                      </span>
-                    )}
-                  </div>
+                {msg.role === "assistant" && msg.provider && msg.provider !== "none" && (
+                  <span className="text-[10px] uppercase font-bold text-gray-400 mt-1 px-1">
+                    via {msg.provider}
+                  </span>
                 )}
               </div>
             ))}
@@ -289,7 +289,7 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
             {/* Lead Capture Card */}
             {showLeadCard && (
               <div
-                className="rounded-2xl border-2 p-4 space-y-3 shadow-sm animate-fadeIn"
+                className="rounded-2xl border-2 p-4 space-y-3 shadow-sm"
                 style={{ borderColor: "var(--lime)", background: "#f9fef0" }}
               >
                 <div>
@@ -297,7 +297,7 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
                     Want Siddhesh to follow up? 👋
                   </p>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    All fields are optional. Siddhesh will personally review this and may reach out.
+                    All fields are optional. Siddhesh will personally review this.
                   </p>
                 </div>
                 <form onSubmit={handleLeadSubmit} className="space-y-2">
@@ -346,7 +346,6 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
               </div>
             )}
 
-            {/* Thank you message after submit */}
             {leadSubmitted && messages.some(m => m.role === "assistant") && (
               <div className="text-center py-2">
                 <span className="text-xs text-gray-400 font-medium">
