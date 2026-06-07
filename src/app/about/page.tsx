@@ -2,11 +2,25 @@ import Image from "next/image";
 import Link from "next/link";
 import SectionHeader from "@/components/SectionHeader";
 import RevealWrapper from "@/components/RevealWrapper";
-import { person } from "@/lib/data";
+import { getProfile } from "@/lib/notion";
 
 export const metadata = { title: "About — Siddhesh Parab" };
+export const dynamic = "force-dynamic";
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  const person = await getProfile();
+
+  if (!person) {
+    return (
+      <div className="min-h-screen flex items-center justify-center pt-20 text-center">
+        <h1 className="text-3xl font-bold">Profile Data Missing</h1>
+        <p className="mt-4 text-gray-400">Please check your Notion connection.</p>
+      </div>
+    );
+  }
+
+  const { bio, openTo, skillsStack } = person;
+
   return (
     <div className="pt-20">
       {/* Hero banner */}
@@ -32,7 +46,7 @@ export default function AboutPage() {
 
             <RevealWrapper delay={100}>
               <p className="text-lg leading-relaxed mb-6 font-medium" style={{ color: "#e2e8f0" }}>
-                {person.bio}
+                {bio}
               </p>
 
               <div className="rounded-xl p-6 mb-4" style={{ background: "var(--navy-light)" }}>
@@ -49,7 +63,7 @@ export default function AboutPage() {
                   Open To
                 </h4>
                 <div className="flex flex-wrap gap-2">
-                  {person.openTo.map((r) => (
+                  {openTo.map((r) => (
                     <span key={r} className="px-3 py-1 rounded-full text-xs font-semibold" style={{ background: "var(--lime)", color: "var(--navy)" }}>
                       {r}
                     </span>
@@ -86,7 +100,7 @@ export default function AboutPage() {
             <SectionHeader tag="Tools I Deploy" title="The Stack." />
           </RevealWrapper>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {["OpenAI API", "Claude API", "LangChain", "RAG Pipelines", "Python", "Pytest", "Playwright", "GitHub Actions", "CI/CD", "Prompt Engineering", "Generative AI", "AI Agent Design"].map((t) => (
+            {skillsStack.map((t) => (
               <RevealWrapper key={t}>
                 <div
                   className="p-4 rounded-xl text-center text-sm font-bold uppercase tracking-wide transition-all duration-200 hover:-translate-y-1"

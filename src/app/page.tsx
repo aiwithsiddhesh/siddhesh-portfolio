@@ -1,43 +1,23 @@
-"use client";
-import { useEffect, useRef } from "react";
 import Link from "next/link";
-import { person } from "@/lib/data";
+import { getProfile } from "@/lib/notion";
+import TypingAnimation from "@/components/TypingAnimation";
 
-const roles = person.roles;
+export const dynamic = "force-dynamic";
 
-export default function HomePage() {
-  const twRef = useRef<HTMLSpanElement>(null);
-  const state = useRef({ roleIdx: 0, charIdx: 0, deleting: false });
+export default async function HomePage() {
+  const person = await getProfile();
 
-  useEffect(() => {
-    let timeout: ReturnType<typeof setTimeout>;
-    function type() {
-      const el = twRef.current;
-      const s = state.current;
-      if (!el) return;
-      const current = roles[s.roleIdx];
-      if (s.deleting) {
-        el.textContent = current.substring(0, --s.charIdx);
-        if (s.charIdx < 0) {
-          s.deleting = false;
-          s.roleIdx = (s.roleIdx + 1) % roles.length;
-          timeout = setTimeout(type, 400);
-          return;
-        }
-        timeout = setTimeout(type, 50);
-      } else {
-        el.textContent = current.substring(0, ++s.charIdx);
-        if (s.charIdx > current.length) {
-          s.deleting = true;
-          timeout = setTimeout(type, 2000);
-          return;
-        }
-        timeout = setTimeout(type, 100);
-      }
-    }
-    timeout = setTimeout(type, 600);
-    return () => clearTimeout(timeout);
-  }, []);
+  if (!person) {
+    return (
+      <div className="min-h-screen flex items-center justify-center pt-20 text-center">
+        <h1 className="text-3xl font-bold">Profile Data Missing</h1>
+        <p className="mt-4 text-gray-400">Please check your Notion connection.</p>
+      </div>
+    );
+  }
+
+  const { name, tagline, roles, taglineBadges, linkedin, github, email } = person;
+  const [firstName, lastName] = name.split(" ");
 
   return (
     <section
@@ -57,21 +37,20 @@ export default function HomePage() {
             fontFamily: "var(--font-oswald, sans-serif)",
           }}
         >
-          Siddhesh
+          {firstName}
           <br />
-          Parab
+          {lastName}
         </h1>
 
         <div
           className="text-xl font-bold uppercase tracking-wider mb-6 flex items-center"
           style={{ fontFamily: "var(--font-oswald, sans-serif)", color: "var(--navy)", minHeight: 32 }}
         >
-          <span ref={twRef} />
-          <span className="tw-cursor" />
+          <TypingAnimation roles={roles} />
         </div>
 
         <div className="flex flex-wrap gap-3 mb-8">
-          {["OpenAI · Claude · LangChain", "RAG Pipelines", "7+ Years", "Pune, India"].map((t) => (
+          {taglineBadges.map((t) => (
             <span
               key={t}
               className="px-4 py-2 rounded-full text-sm font-bold uppercase tracking-wide"
@@ -83,7 +62,7 @@ export default function HomePage() {
         </div>
 
         <p className="text-lg leading-relaxed mb-10 font-medium" style={{ color: "#4a5568", maxWidth: 680 }}>
-          {person.tagline}
+          {tagline}
         </p>
 
         <div className="flex flex-wrap gap-4 mb-12">
@@ -105,9 +84,9 @@ export default function HomePage() {
 
         <div className="flex gap-4">
           {[
-            { href: person.linkedin, label: "Li" },
-            { href: person.github, label: "Gh" },
-            { href: `mailto:${person.email}`, label: "@" },
+            { href: linkedin, label: "Li" },
+            { href: github, label: "Gh" },
+            { href: `mailto:${email}`, label: "@" },
           ].map((s) => (
             <a
               key={s.label}

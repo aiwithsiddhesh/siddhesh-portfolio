@@ -1,15 +1,6 @@
+import "server-only";
 import { Client } from "@notionhq/client";
 import { NotionToMarkdown } from "notion-to-md";
-
-const notion = new Client({ auth: process.env.NOTION_API_KEY });
-const n2m = new NotionToMarkdown({ notionClient: notion as any });
-
-const DB_ID = process.env.NOTION_BLOG_DATABASE_ID!;
-const CERTS_DB_ID = process.env.NOTION_CERTS_DATABASE_ID!;
-const ACHIEVEMENTS_DB_ID = process.env.NOTION_ACHIEVEMENTS_DATABASE_ID!;
-const STATS_DB_ID = process.env.NOTION_STATS_DATABASE_ID!;
-const EXPERIENCE_DB_ID = process.env.NOTION_EXPERIENCE_DATABASE_ID!;
-const PROJECTS_DB_ID = process.env.NOTION_PROJECTS_DATABASE_ID!;
 
 async function queryNotionDatabase(databaseId: string, params: any = {}): Promise<any> {
   if (!databaseId) {
@@ -46,7 +37,10 @@ export interface Certification {
 }
 
 export async function getCertifications(): Promise<Certification[]> {
-  const response = await queryNotionDatabase(CERTS_DB_ID, {
+  const dbId = process.env.NOTION_CERTS_DATABASE_ID;
+  if (!dbId) throw new Error("Missing NOTION_CERTS_DATABASE_ID");
+
+  const response = await queryNotionDatabase(dbId, {
     filter: { property: "Published", checkbox: { equals: true } },
     sorts: [{ property: "Year", direction: "ascending" }],
   });
@@ -62,6 +56,48 @@ export async function getCertifications(): Promise<Certification[]> {
       link: props["Link"]?.url ?? null,
     };
   });
+}
+
+export interface Profile {
+  name: string;
+  tagline: string;
+  bio: string;
+  location: string;
+  email: string;
+  phone: string;
+  linkedin: string;
+  github: string;
+  roles: string[];
+  openTo: string[];
+  taglineBadges: string[];
+  skillsStack: string[];
+}
+
+export async function getProfile(): Promise<Profile | null> {
+  const dbId = process.env.NOTION_PROFILE_DATABASE_ID;
+  if (!dbId) throw new Error("Missing NOTION_PROFILE_DATABASE_ID");
+
+  const response = await queryNotionDatabase(dbId);
+  
+  if (!response.results || response.results.length === 0) return null;
+  
+  const page = response.results[0];
+  const props = page.properties ?? {};
+  
+  return {
+    name: getText(props["Name"]?.title ?? []),
+    tagline: getText(props["Tagline"]?.rich_text ?? []),
+    bio: getText(props["Bio"]?.rich_text ?? []),
+    location: getText(props["Location"]?.rich_text ?? []),
+    email: props["Email"]?.email || "",
+    phone: props["Phone"]?.phone_number || "",
+    linkedin: props["LinkedIn"]?.url || "",
+    github: props["GitHub"]?.url || "",
+    roles: (props["Roles"]?.multi_select ?? []).map((s: any) => s.name),
+    openTo: (props["OpenTo"]?.multi_select ?? []).map((s: any) => s.name),
+    taglineBadges: (props["TaglineBadges"]?.multi_select ?? []).map((s: any) => s.name),
+    skillsStack: (props["SkillsStack"]?.multi_select ?? []).map((s: any) => s.name),
+  };
 }
 
 export interface BlogPost {
@@ -87,8 +123,10 @@ export interface Achievement {
 }
 
 export async function getAchievements(): Promise<Achievement[]> {
-  if (!ACHIEVEMENTS_DB_ID) return [];
-  const response = await queryNotionDatabase(ACHIEVEMENTS_DB_ID, {
+  const dbId = process.env.NOTION_ACHIEVEMENTS_DATABASE_ID;
+  if (!dbId) throw new Error("Missing NOTION_ACHIEVEMENTS_DATABASE_ID");
+
+  const response = await queryNotionDatabase(dbId, {
     filter: { property: "Published", checkbox: { equals: true } },
     sorts: [{ property: "Order", direction: "ascending" }],
   });
@@ -113,8 +151,10 @@ export interface Stat {
 }
 
 export async function getStats(): Promise<Stat[]> {
-  if (!STATS_DB_ID) return [];
-  const response = await queryNotionDatabase(STATS_DB_ID, {
+  const dbId = process.env.NOTION_STATS_DATABASE_ID;
+  if (!dbId) throw new Error("Missing NOTION_STATS_DATABASE_ID");
+
+  const response = await queryNotionDatabase(dbId, {
     filter: { property: "Published", checkbox: { equals: true } },
     sorts: [{ property: "Order", direction: "ascending" }],
   });
@@ -143,8 +183,10 @@ export interface JobExperience {
 }
 
 export async function getExperience(): Promise<JobExperience[]> {
-  if (!EXPERIENCE_DB_ID) return [];
-  const response = await queryNotionDatabase(EXPERIENCE_DB_ID, {
+  const dbId = process.env.NOTION_EXPERIENCE_DATABASE_ID;
+  if (!dbId) throw new Error("Missing NOTION_EXPERIENCE_DATABASE_ID");
+
+  const response = await queryNotionDatabase(dbId, {
     filter: { property: "Published", checkbox: { equals: true } },
     sorts: [{ property: "Order", direction: "ascending" }],
   });
@@ -179,8 +221,10 @@ export interface Project {
 }
 
 export async function getProjects(): Promise<Project[]> {
-  if (!PROJECTS_DB_ID) return [];
-  const response = await queryNotionDatabase(PROJECTS_DB_ID, {
+  const dbId = process.env.NOTION_PROJECTS_DATABASE_ID;
+  if (!dbId) throw new Error("Missing NOTION_PROJECTS_DATABASE_ID");
+
+  const response = await queryNotionDatabase(dbId, {
     filter: { property: "Published", checkbox: { equals: true } },
     sorts: [{ property: "Order", direction: "ascending" }],
   });
@@ -234,12 +278,12 @@ function extractPost(page: any): BlogPost {
   return { id: page.id, slug, title, date, tags, excerpt, cover };
 }
 
-export async function getAllPosts(): Promise<BlogPost[]> {
-  const response = await queryNotionDatabase(DB_ID, {
-    filter: {
-      property: "Published",
-      checkbox: { equals: true },
-    },
+export async function getPosts(): Promise<BlogPost[]> {
+  const dbId = process.env.NOTION_BLOG_DATABASE_ID;
+  if (!dbId) throw new Error("Missing NOTION_BLOG_DATABASE_ID");
+  
+  const response = await queryNotionDatabase(dbId, {
+    filter: { property: "Published", checkbox: { equals: true } },
     sorts: [{ property: "Date", direction: "descending" }],
   });
 

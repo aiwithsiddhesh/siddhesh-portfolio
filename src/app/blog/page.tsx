@@ -1,13 +1,13 @@
 import Link from "next/link";
 import SectionHeader from "@/components/SectionHeader";
 import RevealWrapper from "@/components/RevealWrapper";
-import { getAllPosts } from "@/lib/notion";
+import { getPosts } from "@/lib/notion";
 
 export const metadata = { title: "Blog — Siddhesh Parab" };
 export const dynamic = "force-dynamic";
 
 export default async function BlogPage() {
-  let posts = await getAllPosts().catch(() => []);
+  let posts = await getPosts().catch(() => []);
 
   return (
     <div className="pt-20">
