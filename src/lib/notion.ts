@@ -6,6 +6,8 @@ const n2m = new NotionToMarkdown({ notionClient: notion as any });
 
 const DB_ID = process.env.NOTION_BLOG_DATABASE_ID!;
 const CERTS_DB_ID = process.env.NOTION_CERTS_DATABASE_ID!;
+const ACHIEVEMENTS_DB_ID = process.env.NOTION_ACHIEVEMENTS_DATABASE_ID!;
+const STATS_DB_ID = process.env.NOTION_STATS_DATABASE_ID!;
 
 async function queryNotionDatabase(databaseId: string, params: any = {}): Promise<any> {
   const response = await fetch(`https://api.notion.com/v1/databases/${databaseId}/query`, {
@@ -64,6 +66,58 @@ export interface BlogPost {
 
 export interface BlogPostWithContent extends BlogPost {
   markdown: string;
+}
+
+export interface Achievement {
+  id: string;
+  year: string;
+  category: string;
+  title: string;
+  desc: string;
+}
+
+export async function getAchievements(): Promise<Achievement[]> {
+  if (!ACHIEVEMENTS_DB_ID) return [];
+  const response = await queryNotionDatabase(ACHIEVEMENTS_DB_ID, {
+    filter: { property: "Published", checkbox: { equals: true } },
+    sorts: [{ property: "Order", direction: "ascending" }],
+  });
+
+  return (response.results ?? []).map((page: any) => {
+    const props = page.properties ?? {};
+    return {
+      id: page.id,
+      year: getText(props["Year"]?.rich_text ?? []),
+      category: props["Category"]?.select?.name ?? "General",
+      title: getText(props["Title"]?.title ?? []),
+      desc: getText(props["Description"]?.rich_text ?? []),
+    };
+  });
+}
+
+export interface Stat {
+  id: string;
+  value: number;
+  suffix: string;
+  label: string;
+}
+
+export async function getStats(): Promise<Stat[]> {
+  if (!STATS_DB_ID) return [];
+  const response = await queryNotionDatabase(STATS_DB_ID, {
+    filter: { property: "Published", checkbox: { equals: true } },
+    sorts: [{ property: "Order", direction: "ascending" }],
+  });
+
+  return (response.results ?? []).map((page: any) => {
+    const props = page.properties ?? {};
+    return {
+      id: page.id,
+      value: props["Value"]?.number ?? 0,
+      suffix: getText(props["Suffix"]?.rich_text ?? []),
+      label: getText(props["Label"]?.title ?? []),
+    };
+  });
 }
 
 function getText(rich: any[]): string {
