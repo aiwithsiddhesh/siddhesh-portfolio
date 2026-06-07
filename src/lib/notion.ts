@@ -9,6 +9,7 @@ const CERTS_DB_ID = process.env.NOTION_CERTS_DATABASE_ID!;
 const ACHIEVEMENTS_DB_ID = process.env.NOTION_ACHIEVEMENTS_DATABASE_ID!;
 const STATS_DB_ID = process.env.NOTION_STATS_DATABASE_ID!;
 const EXPERIENCE_DB_ID = process.env.NOTION_EXPERIENCE_DATABASE_ID!;
+const PROJECTS_DB_ID = process.env.NOTION_PROJECTS_DATABASE_ID!;
 
 async function queryNotionDatabase(databaseId: string, params: any = {}): Promise<any> {
   if (!databaseId) {
@@ -161,6 +162,42 @@ export async function getExperience(): Promise<JobExperience[]> {
       summary: getText(props["Summary"]?.rich_text ?? []),
       bullets: bulletsText ? bulletsText.split("\n").map(b => b.trim()).filter(Boolean) : [],
       stack: (props["Stack"]?.multi_select ?? []).map((s: any) => s.name),
+    };
+  });
+}
+
+export interface Project {
+  id: string;
+  title: string;
+  slug: string;
+  type: string;
+  desc: string;
+  outcomes: string[];
+  stack: string[];
+  github: string | null;
+  pypi: string | null;
+}
+
+export async function getProjects(): Promise<Project[]> {
+  if (!PROJECTS_DB_ID) return [];
+  const response = await queryNotionDatabase(PROJECTS_DB_ID, {
+    filter: { property: "Published", checkbox: { equals: true } },
+    sorts: [{ property: "Order", direction: "ascending" }],
+  });
+
+  return (response.results ?? []).map((page: any) => {
+    const props = page.properties ?? {};
+    const outcomesText = getText(props["Outcomes"]?.rich_text ?? []);
+    return {
+      id: page.id,
+      title: getText(props["Title"]?.title ?? []),
+      slug: getText(props["Slug"]?.rich_text ?? []),
+      type: getText(props["Type"]?.rich_text ?? []),
+      desc: getText(props["Description"]?.rich_text ?? []),
+      outcomes: outcomesText ? outcomesText.split("\n").map(b => b.trim()).filter(Boolean) : [],
+      stack: (props["Stack"]?.multi_select ?? []).map((s: any) => s.name),
+      github: props["GitHub"]?.url || null,
+      pypi: props["PyPI"]?.url || null,
     };
   });
 }

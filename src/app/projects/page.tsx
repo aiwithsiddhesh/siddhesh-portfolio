@@ -1,10 +1,13 @@
 import SectionHeader from "@/components/SectionHeader";
 import RevealWrapper from "@/components/RevealWrapper";
-import { projects } from "@/lib/data";
+import { getProjects } from "@/lib/notion";
 
 export const metadata = { title: "Projects — Siddhesh Parab" };
+export const dynamic = "force-dynamic";
 
-export default function ProjectsPage() {
+export default async function ProjectsPage() {
+  const projects = await getProjects().catch(() => []);
+
   return (
     <div className="pt-20">
       <section className="py-24" style={{ background: "var(--navy)" }}>
@@ -15,7 +18,7 @@ export default function ProjectsPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {projects.map((p, i) => (
-              <RevealWrapper key={p.slug} delay={i * 80}>
+              <RevealWrapper key={p.id} delay={i * 100}>
                 <div
                   className="p-8 rounded-2xl h-full flex flex-col transition-all duration-300 hover:-translate-y-1"
                   style={{ background: "var(--navy-light)", boxShadow: "none" }}
