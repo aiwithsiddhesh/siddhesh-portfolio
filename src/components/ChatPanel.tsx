@@ -204,9 +204,23 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
 
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-4 shrink-0" style={{ background: "var(--navy)", color: "var(--cream)" }}>
-        <h2 className="font-bold uppercase tracking-wider text-lg" style={{ fontFamily: "var(--font-oswald, sans-serif)" }}>
-          Chat with Siddhesh
-        </h2>
+        <div>
+          <h2 className="font-bold uppercase tracking-wider text-lg leading-tight" style={{ fontFamily: "var(--font-oswald, sans-serif)" }}>
+            Chat with Siddhesh
+          </h2>
+          <a
+            href="https://calendly.com/parab-ssp-siddhesh"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-widest mt-0.5 hover:opacity-80 transition-opacity"
+            style={{ color: "var(--lime)" }}
+          >
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+            Book a Call
+          </a>
+        </div>
         <div className="flex items-center gap-1">
           {messages.length > 0 && (
             <button
