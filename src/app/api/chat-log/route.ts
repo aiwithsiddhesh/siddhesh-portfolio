@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         parent: { database_id: dbId },
         properties: {
-          Message: {
+          Name: {
             title: [{ text: { content: content.slice(0, 2000) } }],
           },
           Role: {
