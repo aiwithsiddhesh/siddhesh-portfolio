@@ -1,11 +1,11 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getPostBySlug, getAllPosts } from "@/lib/notion";
+import { getPostBySlug, getPosts } from "@/lib/notion";
 
 export const revalidate = 3600;
 
 export async function generateStaticParams() {
-  const posts = await getAllPosts().catch(() => []);
+  const posts = await getPosts().catch(() => []);
   return posts.map((p) => ({ slug: p.slug }));
 }
 
