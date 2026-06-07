@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
 
 interface Message {
   role: "user" | "assistant";
@@ -186,14 +187,24 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
                   </span>
                 )}
                 <div
-                  className={`max-w-[85%] p-3 rounded-2xl text-sm leading-relaxed ${
+                  className={`max-w-[85%] p-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
                     msg.role === "user"
                       ? "rounded-tr-sm font-medium shadow-sm"
                       : "bg-white border border-gray-100 rounded-tl-sm shadow-sm"
                   }`}
                   style={msg.role === "user" ? { background: "var(--cream)", color: "var(--navy)" } : { color: "#333" }}
                 >
-                  {msg.content}
+                  <ReactMarkdown 
+                    components={{
+                      p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                      ul: ({ children }) => <ul className="list-disc ml-4 mb-2">{children}</ul>,
+                      ol: ({ children }) => <ol className="list-decimal ml-4 mb-2">{children}</ol>,
+                      li: ({ children }) => <li className="mb-1">{children}</li>,
+                      strong: ({ children }) => <strong className="font-bold">{children}</strong>,
+                    }}
+                  >
+                    {msg.content}
+                  </ReactMarkdown>
                 </div>
                 {msg.role === "assistant" && (
                   <div className="flex items-center gap-2 mt-1 px-1">
