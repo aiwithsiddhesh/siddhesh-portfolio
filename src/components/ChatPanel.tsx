@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface Message {
   role: "user" | "assistant";
@@ -187,22 +188,14 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
                   </span>
                 )}
                 <div
-                  className={`max-w-[85%] p-3 rounded-2xl text-sm leading-relaxed ${
+                  className={`max-w-[85%] p-3 rounded-2xl text-sm leading-relaxed markdown-content ${
                     msg.role === "user"
                       ? "rounded-tr-sm font-medium shadow-sm"
                       : "bg-white border border-gray-100 rounded-tl-sm shadow-sm"
                   }`}
                   style={msg.role === "user" ? { background: "var(--cream)", color: "var(--navy)" } : { color: "#333" }}
                 >
-                  <ReactMarkdown 
-                    components={{
-                      p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
-                      ul: ({ children }) => <ul className="list-disc ml-5 mb-3 space-y-1">{children}</ul>,
-                      ol: ({ children }) => <ol className="list-decimal ml-5 mb-3 space-y-1">{children}</ol>,
-                      li: ({ children }) => <li className="mb-1">{children}</li>,
-                      strong: ({ children }) => <strong className="font-extrabold text-black">{children}</strong>,
-                    }}
-                  >
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {msg.content}
                   </ReactMarkdown>
                 </div>
