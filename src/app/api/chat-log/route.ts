@@ -46,8 +46,8 @@ export async function POST(req: NextRequest) {
 
     if (!res.ok) {
       const err = await res.text();
-      console.error("Notion chat log failed:", err);
-      return NextResponse.json({ error: "Failed to save" }, { status: 500 });
+      console.error(`Notion chat log failed [${res.status}]:`, err);
+      return NextResponse.json({ error: `Notion Error: ${res.status}`, detail: err }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });

@@ -98,7 +98,14 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sessionId, role: "user", content: text }),
-    }).catch(err => console.error("Log error:", err));
+    })
+    .then(async res => {
+      if (!res.ok) {
+        const errorData = await res.json();
+        console.error("NOTION LOG ERROR (User Msg):", errorData);
+      }
+    })
+    .catch(err => console.error("Log error:", err));
 
     try {
       const response = await fetch("/api/chat", {
@@ -126,7 +133,14 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
           content: data.reply, 
           provider: data.provider 
         }),
-      }).catch(err => console.error("Log error:", err));
+      })
+      .then(async res => {
+        if (!res.ok) {
+          const errorData = await res.json();
+          console.error("NOTION LOG ERROR (Bot Msg):", errorData);
+        }
+      })
+      .catch(err => console.error("Log error:", err));
     } catch (error) {
       console.error(error);
       setMessages([...newMessages, { role: "assistant", content: "Sorry, I'm having trouble connecting right now." }]);
