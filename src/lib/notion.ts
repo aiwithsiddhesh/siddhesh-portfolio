@@ -2,6 +2,9 @@ import "server-only";
 import { Client } from "@notionhq/client";
 import { NotionToMarkdown } from "notion-to-md";
 
+const notion = new Client({ auth: process.env.NOTION_API_KEY });
+const n2m = new NotionToMarkdown({ notionClient: notion as any });
+
 async function queryNotionDatabase(databaseId: string, params: any = {}): Promise<any> {
   if (!databaseId) {
     throw new Error("Missing database ID");
