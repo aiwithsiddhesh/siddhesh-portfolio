@@ -187,7 +187,7 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
                   </span>
                 )}
                 <div
-                  className={`max-w-[85%] p-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
+                  className={`max-w-[85%] p-3 rounded-2xl text-sm leading-relaxed ${
                     msg.role === "user"
                       ? "rounded-tr-sm font-medium shadow-sm"
                       : "bg-white border border-gray-100 rounded-tl-sm shadow-sm"
@@ -196,11 +196,11 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
                 >
                   <ReactMarkdown 
                     components={{
-                      p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                      ul: ({ children }) => <ul className="list-disc ml-4 mb-2">{children}</ul>,
-                      ol: ({ children }) => <ol className="list-decimal ml-4 mb-2">{children}</ol>,
+                      p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
+                      ul: ({ children }) => <ul className="list-disc ml-5 mb-3 space-y-1">{children}</ul>,
+                      ol: ({ children }) => <ol className="list-decimal ml-5 mb-3 space-y-1">{children}</ol>,
                       li: ({ children }) => <li className="mb-1">{children}</li>,
-                      strong: ({ children }) => <strong className="font-bold">{children}</strong>,
+                      strong: ({ children }) => <strong className="font-extrabold text-black">{children}</strong>,
                     }}
                   >
                     {msg.content}
