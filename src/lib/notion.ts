@@ -11,6 +11,10 @@ const STATS_DB_ID = process.env.NOTION_STATS_DATABASE_ID!;
 const EXPERIENCE_DB_ID = process.env.NOTION_EXPERIENCE_DATABASE_ID!;
 
 async function queryNotionDatabase(databaseId: string, params: any = {}): Promise<any> {
+  if (!databaseId) {
+    throw new Error("Missing database ID");
+  }
+
   const response = await fetch(`https://api.notion.com/v1/databases/${databaseId}/query`, {
     method: "POST",
     headers: {
@@ -19,11 +23,15 @@ async function queryNotionDatabase(databaseId: string, params: any = {}): Promis
       "Content-Type": "application/json",
     },
     body: JSON.stringify(params),
+    cache: "no-store",
   });
+
   if (!response.ok) {
-    console.error("Notion query failed:", response.status, await response.text());
-    throw new Error(`Notion API error: ${response.status}`);
+    const text = await response.text();
+    console.error(`Notion API Error: ${response.status} ${text}`);
+    throw new Error(`Notion API Error: ${response.status} ${text}`);
   }
+
   return response.json();
 }
 
