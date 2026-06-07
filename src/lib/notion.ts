@@ -297,17 +297,21 @@ export async function getPostBySlug(slug: string): Promise<BlogPostWithContent |
   const dbId = process.env.NOTION_BLOG_DATABASE_ID;
   if (!dbId) throw new Error("Missing NOTION_BLOG_DATABASE_ID");
 
-  // try matching by Slug field first
-  const response = await queryNotionDatabase(dbId, {
-    filter: {
-      and: [
-        { property: "Published", checkbox: { equals: true } },
-        { property: "Slug", rich_text: { equals: slug } },
-      ],
-    },
-  });
-
-  let page = response.results?.[0];
+  // try matching by Slug field first (only if property exists)
+  let page: any = null;
+  try {
+    const response = await queryNotionDatabase(dbId, {
+      filter: {
+        and: [
+          { property: "Published", checkbox: { equals: true } },
+          { property: "Slug", rich_text: { equals: slug } },
+        ],
+      },
+    });
+    page = response.results?.[0];
+  } catch {
+    // Slug property doesn't exist in this database — fall through to title-based lookup
+  }
 
   // fallback: scan all published and match auto-slug from title
   if (!page) {
