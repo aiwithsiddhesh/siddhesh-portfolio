@@ -27,8 +27,8 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
 
   // Restore lead state from sessionStorage on mount
   useEffect(() => {
-    const dismissed = sessionStorage.getItem("lead_dismissed") === "true";
-    const submitted = sessionStorage.getItem("lead_submitted") === "true";
+    const dismissed = sessionStorage.getItem("lead_v2_dismissed") === "true";
+    const submitted = sessionStorage.getItem("lead_v2_submitted") === "true";
     setLeadDismissed(dismissed);
     setLeadSubmitted(submitted);
   }, []);
@@ -110,14 +110,14 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
       setLeadLoading(false);
       setLeadSubmitted(true);
       setShowLeadCard(false);
-      sessionStorage.setItem("lead_submitted", "true");
+      sessionStorage.setItem("lead_v2_submitted", "true");
     }
   };
 
   const handleLeadDismiss = () => {
     setLeadDismissed(true);
     setShowLeadCard(false);
-    sessionStorage.setItem("lead_dismissed", "true");
+    sessionStorage.setItem("lead_v2_dismissed", "true");
   };
 
   const starterChips = [
