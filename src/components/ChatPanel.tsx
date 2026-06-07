@@ -195,7 +195,17 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
                   }`}
                   style={msg.role === "user" ? { background: "var(--cream)", color: "var(--navy)" } : { color: "#333" }}
                 >
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  <ReactMarkdown 
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      p: ({ children }) => <p className="mb-4 last:mb-0 block">{children}</p>,
+                      ul: ({ children }) => <ul className="list-disc ml-6 mb-4 space-y-2 block">{children}</ul>,
+                      ol: ({ children }) => <ol className="list-decimal ml-6 mb-4 space-y-2 block">{children}</ol>,
+                      li: ({ children }) => <li className="mb-1">{children}</li>,
+                      strong: ({ children }) => <strong className="font-black text-black inline">{children}</strong>,
+                      b: ({ children }) => <b className="font-black text-black inline">{children}</b>,
+                    }}
+                  >
                     {msg.content}
                   </ReactMarkdown>
                 </div>
