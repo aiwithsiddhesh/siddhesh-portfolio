@@ -3,68 +3,97 @@
 import { useState, useEffect } from "react";
 import ChatPanel from "./ChatPanel";
 
+export type ChatSize = "closed" | "popup" | "fullscreen";
+
 export default function ChatBubble() {
-  const [isOpen, setIsOpen]     = useState(false);
+  const [size, setSize]           = useState<ChatSize>("closed");
   const [isExiting, setIsExiting] = useState(false);
   const [hasOpened, setHasOpened] = useState(false);
-  const [mounted, setMounted]   = useState(false);
+  const [mounted, setMounted]     = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
 
-  // Lock body scroll when chat is open
+  // Lock scroll only in fullscreen
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
+    document.body.style.overflow = size === "fullscreen" ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
-  }, [isOpen]);
+  }, [size]);
 
   const open = () => {
-    setIsOpen(true);
+    setSize("popup");
     setIsExiting(false);
     setHasOpened(true);
   };
 
+  const expand = () => {
+    setSize("fullscreen");
+    setIsExiting(false);
+  };
+
+  const collapse = () => {
+    setSize("popup");
+    setIsExiting(false);
+  };
+
   const close = () => {
-    setIsExiting(true);
-    // Wait for exit animation to finish before unmounting
-    setTimeout(() => {
-      setIsOpen(false);
-      setIsExiting(false);
-    }, 220);
+    if (size === "fullscreen") {
+      // animate out then go to closed
+      setIsExiting(true);
+      setTimeout(() => {
+        setSize("closed");
+        setIsExiting(false);
+      }, 220);
+    } else {
+      setSize("closed");
+    }
   };
 
   if (!mounted) return null;
 
+  const isOpen = size !== "closed";
+
   return (
     <>
-      {/* Fullscreen overlay */}
-      {(isOpen || isExiting) && (
-        <>
-          {/* Backdrop */}
-          <div
-            className={`fixed inset-0 z-[99] ${isExiting ? "chat-backdrop-exit" : "chat-backdrop-enter"}`}
-            style={{ background: "rgba(22,26,40,0.7)", backdropFilter: "blur(6px)" }}
-            onClick={close}
-          />
-
-          {/* Panel */}
-          <div
-            className={`fixed inset-x-0 bottom-0 z-[100] flex justify-center ${isExiting ? "chat-panel-exit" : "chat-panel-enter"}`}
-          >
-            <div className="w-full md:max-w-lg md:mb-6 md:rounded-3xl overflow-hidden shadow-2xl"
-              style={{ height: "92dvh" }}
-              onClick={e => e.stopPropagation()}
-            >
-              <ChatPanel onClose={close} />
-            </div>
-          </div>
-        </>
+      {/* ── Fullscreen backdrop (only in fullscreen) ── */}
+      {(size === "fullscreen" || (isExiting && size === "closed")) && (
+        <div
+          className={`fixed inset-0 z-[99] ${isExiting ? "chat-backdrop-exit" : "chat-backdrop-enter"}`}
+          style={{ background: "rgba(22,26,40,0.7)", backdropFilter: "blur(6px)" }}
+          onClick={close}
+        />
       )}
 
-      {/* Floating bubble button */}
+      {/* ── Chat panel ── */}
+      {(isOpen || isExiting) && (
+        <div
+          className={`fixed z-[100] transition-all ${
+            size === "fullscreen" || isExiting
+              ? `inset-x-0 bottom-0 flex justify-center ${isExiting ? "chat-panel-exit" : "chat-panel-enter"}`
+              : "bottom-24 right-6"
+          }`}
+          onClick={e => e.stopPropagation()}
+        >
+          <div
+            className={`bg-white overflow-hidden shadow-2xl flex flex-col transition-all duration-300 ${
+              size === "fullscreen" || isExiting
+                ? "w-full md:max-w-lg md:mb-6 md:rounded-3xl rounded-t-3xl"
+                : "w-[360px] sm:w-[400px] rounded-2xl border border-gray-200"
+            }`}
+            style={{
+              height: size === "fullscreen" || isExiting ? "92dvh" : "540px",
+            }}
+          >
+            <ChatPanel
+              size={size}
+              onClose={close}
+              onExpand={expand}
+              onCollapse={collapse}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ── Floating bubble ── */}
       {!isOpen && !isExiting && (
         <button
           onClick={open}

@@ -25,7 +25,14 @@ function buildTranscript(msgs: Message[]): string {
     .join("\n\n");
 }
 
-export default function ChatPanel({ onClose }: { onClose?: () => void }) {
+import type { ChatSize } from "./ChatBubble";
+
+export default function ChatPanel({ onClose, onExpand, onCollapse, size = "popup" }: {
+  onClose?: () => void;
+  onExpand?: () => void;
+  onCollapse?: () => void;
+  size?: ChatSize;
+}) {
   const [messages, setMessages]     = useState<Message[]>([]);
   const [input, setInput]           = useState("");
   const [isLoading, setIsLoading]   = useState(false);
@@ -183,6 +190,7 @@ export default function ChatPanel({ onClose }: { onClose?: () => void }) {
               onClick={() => { setMessages([]); setShowLeadCard(false); }}
               className="p-2 hover:bg-white/10 rounded-full transition-colors text-xs font-semibold flex items-center gap-1"
               style={{ color: "var(--lime)" }}
+              title="Clear chat"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="3 6 5 6 21 6"/>
@@ -193,6 +201,37 @@ export default function ChatPanel({ onClose }: { onClose?: () => void }) {
               Clear
             </button>
           )}
+
+          {/* Expand / Collapse toggle */}
+          {size === "popup" && onExpand && (
+            <button
+              onClick={onExpand}
+              className="p-2 hover:bg-white/10 rounded-full transition-colors"
+              style={{ color: "var(--lime)" }}
+              aria-label="Expand chat"
+              title="Expand"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/>
+                <line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+              </svg>
+            </button>
+          )}
+          {size === "fullscreen" && onCollapse && (
+            <button
+              onClick={onCollapse}
+              className="p-2 hover:bg-white/10 rounded-full transition-colors"
+              style={{ color: "var(--lime)" }}
+              aria-label="Collapse chat"
+              title="Collapse"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/>
+                <line x1="10" y1="14" x2="3" y2="21"/><line x1="21" y1="3" x2="14" y2="10"/>
+              </svg>
+            </button>
+          )}
+
           {onClose && (
             <button
               onClick={onClose}
@@ -200,7 +239,7 @@ export default function ChatPanel({ onClose }: { onClose?: () => void }) {
               style={{ color: "var(--lime)" }}
               aria-label="Close chat"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
               </svg>
             </button>
