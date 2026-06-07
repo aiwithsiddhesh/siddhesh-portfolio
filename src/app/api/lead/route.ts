@@ -83,8 +83,9 @@ export async function POST(req: NextRequest) {
 
     if (!res.ok) {
       const err = await res.text();
-      console.error("Notion lead operation failed:", err);
-      return NextResponse.json({ error: "Failed to save to Notion" }, { status: 500 });
+      console.error(`Notion lead operation failed [${res.status}]:`, err);
+      console.error("Payload sent:", JSON.stringify({ properties }));
+      return NextResponse.json({ error: `Notion Error: ${res.status}` }, { status: 500 });
     }
 
     const data = await res.json();
