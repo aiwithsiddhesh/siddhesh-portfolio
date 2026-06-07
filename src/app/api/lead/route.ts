@@ -33,7 +33,9 @@ export async function POST(req: NextRequest) {
     };
 
     if (email) {
-      properties["Email"] = { email };
+      properties["Email"] = {
+        rich_text: [{ text: { content: email } }],
+      };
     }
 
     if (company) {
