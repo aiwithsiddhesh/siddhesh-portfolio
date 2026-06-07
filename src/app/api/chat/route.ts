@@ -46,7 +46,18 @@ export async function POST(req: Request) {
 
     const contents = [
       ...formattedHistory,
-      { role: "user", parts: [{ text: `[PORTFOLIO CONTEXT]\n${context}\n\n[USER MESSAGE]\n${message}` }] },
+      { 
+        role: "user", 
+        parts: [{ 
+          text: `You have access to the following information about Siddhesh's career. Use this context to answer the user's message precisely.
+
+CONTEXT:
+${context}
+
+USER MESSAGE:
+${message}` 
+        }] 
+      },
     ];
 
     const res = await fetch(
