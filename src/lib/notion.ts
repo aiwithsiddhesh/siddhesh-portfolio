@@ -291,8 +291,11 @@ export async function getPosts(): Promise<BlogPost[]> {
 }
 
 export async function getPostBySlug(slug: string): Promise<BlogPostWithContent | null> {
+  const dbId = process.env.NOTION_BLOG_DATABASE_ID;
+  if (!dbId) throw new Error("Missing NOTION_BLOG_DATABASE_ID");
+
   // try matching by Slug field first
-  const response = await queryNotionDatabase(DB_ID, {
+  const response = await queryNotionDatabase(dbId, {
     filter: {
       and: [
         { property: "Published", checkbox: { equals: true } },
@@ -305,7 +308,7 @@ export async function getPostBySlug(slug: string): Promise<BlogPostWithContent |
 
   // fallback: scan all published and match auto-slug from title
   if (!page) {
-    const all = await queryNotionDatabase(DB_ID, {
+    const all = await queryNotionDatabase(dbId, {
       filter: { property: "Published", checkbox: { equals: true } },
     });
     page = (all.results ?? []).find((p: any) => extractPost(p).slug === slug);
