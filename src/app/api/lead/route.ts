@@ -4,12 +4,7 @@ export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, email, company, firstQuestion } = await req.json();
-
-    // At least one field must be filled
-    if (!name && !email && !company) {
-      return NextResponse.json({ error: "No data provided" }, { status: 400 });
-    }
+    const { name, email, company, firstQuestion, pageId } = await req.json();
 
     const notionKey = process.env.NOTION_API_KEY;
     const dbId = process.env.NOTION_LEADS_DB_ID;
@@ -18,19 +13,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Notion not configured" }, { status: 500 });
     }
 
-    const now = new Date().toISOString();
+    const properties: Record<string, any> = {};
 
-    const properties: Record<string, any> = {
-      Name: {
-        title: [{ text: { content: name || "Anonymous Visitor" } }],
-      },
-      "Submitted At": {
-        date: { start: now },
-      },
-      Status: {
-        select: { name: "New" },
-      },
-    };
+    if (name) {
+      properties["Name"] = {
+        title: [{ text: { content: name } }],
+      };
+    } else if (!pageId) {
+      properties["Name"] = {
+        title: [{ text: { content: "Anonymous Visitor" } }],
+      };
+    }
 
     if (email) {
       properties["Email"] = {
@@ -50,26 +43,52 @@ export async function POST(req: NextRequest) {
       };
     }
 
-    const res = await fetch("https://api.notion.com/v1/pages", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${notionKey}`,
-        "Notion-Version": "2022-06-28",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        parent: { database_id: dbId },
-        properties,
-      }),
-    });
+    // Only set these on creation
+    if (!pageId) {
+      properties["Submitted At"] = {
+        date: { start: new Date().toISOString() },
+      };
+      properties["Status"] = {
+        select: { name: "New" },
+      };
+    }
+
+    let res;
+    if (pageId) {
+      // UPDATE existing page
+      res = await fetch(`https://api.notion.com/v1/pages/${pageId}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${notionKey}`,
+          "Notion-Version": "2022-06-28",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ properties }),
+      });
+    } else {
+      // CREATE new page
+      res = await fetch("https://api.notion.com/v1/pages", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${notionKey}`,
+          "Notion-Version": "2022-06-28",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          parent: { database_id: dbId },
+          properties,
+        }),
+      });
+    }
 
     if (!res.ok) {
       const err = await res.text();
-      console.error("Notion lead save failed:", err);
+      console.error("Notion lead operation failed:", err);
       return NextResponse.json({ error: "Failed to save to Notion" }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true });
+    const data = await res.json();
+    return NextResponse.json({ success: true, id: data.id });
   } catch (error) {
     console.error("Lead API error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

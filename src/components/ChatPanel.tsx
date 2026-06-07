@@ -16,6 +16,7 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState("");
+  const [leadPageId, setLeadPageId] = useState("");
 
   // Lead capture state
   const [showLeadCard, setShowLeadCard] = useState(false);
@@ -75,6 +76,23 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
     setInput("");
     setIsLoading(true);
 
+    // If this is the FIRST user message, create a lead record in Notion immediately
+    if (newMessages.length === 1 && !leadPageId) {
+      fetch("/api/lead", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          name: "Anonymous Visitor", 
+          firstQuestion: text 
+        }),
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.id) setLeadPageId(data.id);
+      })
+      .catch(err => console.error("Auto-lead error:", err));
+    }
+
     // Log user message to Notion
     fetch("/api/chat-log", {
       method: "POST",
@@ -122,17 +140,16 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
     if (!leadName && !leadEmail && !leadCompany) return;
 
     setLeadLoading(true);
-    const firstQuestion = messages.find(m => m.role === "user")?.content || "";
 
     try {
       await fetch("/api/lead", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          pageId: leadPageId, // Update existing record
           name: leadName,
           email: leadEmail,
           company: leadCompany,
-          firstQuestion,
         }),
       });
     } catch (err) {
