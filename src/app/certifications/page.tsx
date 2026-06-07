@@ -8,6 +8,21 @@ export const dynamic = "force-dynamic";
 export default async function CertificationsPage() {
   const certifications = await getCertifications().catch(() => []);
 
+  const issuerCounts = certifications.reduce((acc, c) => {
+    if (c.issuer) {
+      acc[c.issuer] = (acc[c.issuer] || 0) + 1;
+    }
+    return acc;
+  }, {} as Record<string, number>);
+
+  const issuerStrings = Object.entries(issuerCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([issuer, count]) => `${count}× ${issuer}`);
+  
+  const footerText = issuerStrings.length > 0 
+    ? `${issuerStrings.join(" · ")} — all with verify links`
+    : "All with verify links";
+
   return (
     <div className="pt-20">
       <section className="py-24" style={{ background: "var(--cream)" }}>
@@ -63,7 +78,7 @@ export default async function CertificationsPage() {
                 {certifications.length}× Certified
               </p>
               <p className="text-sm" style={{ color: "#a0aec0" }}>
-                5× Anthropic · 2× DeepLearning.AI — all with verify links
+                {footerText}
               </p>
             </div>
           </RevealWrapper>
