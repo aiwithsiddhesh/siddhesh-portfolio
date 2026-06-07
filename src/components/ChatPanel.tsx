@@ -15,6 +15,7 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [sessionId, setSessionId] = useState("");
 
   // Lead capture state
   const [showLeadCard, setShowLeadCard] = useState(false);
@@ -33,6 +34,14 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
     const submitted = sessionStorage.getItem("lead_v2_submitted") === "true";
     setLeadDismissed(dismissed);
     setLeadSubmitted(submitted);
+
+    // Initialize or restore session ID
+    let sid = sessionStorage.getItem("chat_session_id");
+    if (!sid) {
+      sid = `sid_${Math.random().toString(36).substring(2, 11)}_${Date.now()}`;
+      sessionStorage.setItem("chat_session_id", sid);
+    }
+    setSessionId(sid);
   }, []);
 
   const scrollToBottom = () => {
@@ -66,6 +75,13 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
     setInput("");
     setIsLoading(true);
 
+    // Log user message to Notion
+    fetch("/api/chat-log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId, role: "user", content: text }),
+    }).catch(err => console.error("Log error:", err));
+
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
@@ -74,12 +90,25 @@ export default function ChatPanel({ isOpen, onClose }: { isOpen?: boolean; onClo
       });
 
       const data = await response.json();
-      setMessages([...newMessages, {
+      const assistantMsg: Message = {
         role: "assistant",
         content: data.reply,
         provider: data.provider,
         toolsUsed: data.toolsUsed,
-      }]);
+      };
+      setMessages([...newMessages, assistantMsg]);
+
+      // Log assistant message to Notion
+      fetch("/api/chat-log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          sessionId, 
+          role: "assistant", 
+          content: data.reply, 
+          provider: data.provider 
+        }),
+      }).catch(err => console.error("Log error:", err));
     } catch (error) {
       console.error(error);
       setMessages([...newMessages, { role: "assistant", content: "Sorry, I'm having trouble connecting right now." }]);
