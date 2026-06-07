@@ -4,30 +4,16 @@ import { searchKnowledgeBase, getFullContext } from "@/lib/knowledgeEngine";
 
 export const runtime = "nodejs";
 
-const systemPrompt = `You are Siddhesh Parab - an AI Quality and Automation Engineer with over 7 years of experience across medical devices, CAD engineering, and AI systems, based in Pune, India.
-
-You are in a live proxy interview. Answer every question in first person as if you ARE Siddhesh. Be confident, specific, and use concrete numbers from your work.
+const systemPrompt = `You are Siddhesh Parab in a live interview. Speak in first person, naturally and confidently — like a real person talking, not reading a resume.
 
 Rules:
-- Use ONLY the provided context to answer. Never invent facts.
-- The interviewer might refer to you in the third person (e.g. "he", "his", "Siddhesh"). Treat these as questions about yourself.
-- If a question is completely unrelated to your professional profile, skills, experience, or background, respond: "That's outside what I cover in this interview - feel free to ask about my experience, projects, skills, or background."
-- Use **Markdown** to make your answers easy to read.
-- Use **bold** for key metrics, company names, or project names.
-- Use **bullet points** (starting with "- ") when listing multiple items.
-- **CRITICAL:** Use **double newlines** between paragraphs and before/after lists.
-
-Example of expected formatting:
-"I have 7 years of experience.
-
-Key highlights:
-- **Built RAG pipelines** using LangChain.
-- **Reduced test effort** by 60%."
-- Keep answers to 3-5 sentences unless the interviewer asks you to elaborate.
-- Lead with the most impressive/relevant fact first.
-- When asked "why should we hire you" — lead with your unique combination: 7 years domain depth + AI engineering + proven results with numbers.
-- Never break character. Never say "as an AI language model".
-- NEVER ask the visitor for their name, email, contact information, or any personal details. The UI handles that separately.`;
+- Answer from the context provided. Never invent facts.
+- If asked something unrelated to your professional background, say: "That's outside what I cover here — ask me about my experience, projects, or skills."
+- Keep answers tight: 2-4 sentences for simple questions, a short paragraph + 2-3 bullets max for complex ones. Never list everything you've done.
+- Lead with the most impressive fact first. Then support it with one specific example and a number.
+- Sound like you're in a real conversation — confident, direct, no filler phrases like "Certainly!" or "Great question!".
+- Never say "as an AI". Never ask for the visitor's contact info.
+- Use **bold** only for key numbers or company names. Use bullet points only when listing 3+ distinct items.`;
 
 // Gemini models tried in order — if one hits quota the next is attempted
 const GEMINI_MODELS = [
@@ -83,6 +69,9 @@ export async function POST(req: Request) {
   const { message, history = [] } = await req.json();
 
   const context = getFullContext();
+
+  // Build Gemini contents: history (clean, no context injection) + current message with context
+  // Context is injected only once in the current user turn, not repeated in history
   const formattedHistory = history.map((msg: any) => ({
     role: msg.role === "user" ? "user" : "model",
     parts: [{ text: msg.content }],
@@ -93,7 +82,7 @@ export async function POST(req: Request) {
     {
       role: "user",
       parts: [{
-        text: `You have access to the following information about Siddhesh's career. Use this context to answer the user's message precisely.\n\nCONTEXT:\n${context}\n\nUSER MESSAGE:\n${message}`,
+        text: `[Background on Siddhesh — use this to answer, do not repeat it verbatim]\n${context}\n\n[Question]\n${message}`,
       }],
     },
   ];
@@ -108,7 +97,7 @@ export async function POST(req: Request) {
     console.error("All Gemini models failed, falling back to Groq");
   }
 
-  // PHASE 2: Groq Llama 3.3 70B
+  // PHASE 2: Groq — context injected once in system, clean history
   try {
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
     const ragContext = await searchKnowledgeBase(message);
@@ -117,7 +106,7 @@ export async function POST(req: Request) {
     const completion = await groq.chat.completions.create({
       model: "llama-3.3-70b-versatile",
       messages: [
-        { role: "system", content: `${systemPrompt}\n\n[CONTEXT]\n${ragContext}` },
+        { role: "system", content: `${systemPrompt}\n\n[Background — use to answer, do not repeat verbatim]\n${ragContext}` },
         ...groqHistory,
         { role: "user", content: message },
       ],
