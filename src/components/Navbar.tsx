@@ -15,6 +15,7 @@ const links = [
   { href: "/certifications", label: "Certs" },
   { href: "/blog", label: "Blog" },
   { href: "/contact", label: "Contact" },
+  { href: "/chat", label: "Chat" },
 ];
 
 export default function Navbar() {
