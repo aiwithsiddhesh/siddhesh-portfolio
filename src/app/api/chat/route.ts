@@ -33,23 +33,20 @@ Key highlights:
 export async function POST(req: Request) {
   const { message, history = [] } = await req.json();
 
-  // PHASE 1: Gemini 1.5 Flash — direct REST call to v1 endpoint (no SDK)
+  const context = getFullContext();
+  const formattedHistory = history.map((msg: any) => ({
+    role: msg.role === "user" ? "user" : "model",
+    parts: [{ text: msg.content }],
+  }));
+
+  // PHASE 1: Gemini 2.0 Flash — direct REST call to v1 endpoint (no SDK)
   try {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error("No Gemini API key");
 
-    const context = getFullContext();
-    const augmentedMessage = `[MY PORTFOLIO CONTEXT — USE THIS TO ANSWER]\n${context}\n\n[INTERVIEWER QUESTION]\n${message}`;
-
-    // Embed system prompt as first turns (v1beta doesn't support system_instruction field this way)
     const contents = [
-      { role: "user", parts: [{ text: `SYSTEM INSTRUCTIONS: ${systemPrompt}\n\nAcknowledge these instructions briefly.` }] },
-      { role: "model", parts: [{ text: "Understood. I am Siddhesh Parab, ready for the interview." }] },
-      ...history.map((msg: any) => ({
-        role: msg.role === "user" ? "user" : "model",
-        parts: [{ text: msg.content }],
-      })),
-      { role: "user", parts: [{ text: augmentedMessage }] },
+      ...formattedHistory,
+      { role: "user", parts: [{ text: `[PORTFOLIO CONTEXT]\n${context}\n\n[USER MESSAGE]\n${message}` }] },
     ];
 
     const res = await fetch(
@@ -57,7 +54,12 @@ export async function POST(req: Request) {
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents }),
+        body: JSON.stringify({ 
+          system_instruction: {
+            parts: [{ text: systemPrompt }]
+          },
+          contents 
+        }),
       }
     );
 
