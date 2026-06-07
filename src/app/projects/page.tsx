@@ -6,7 +6,17 @@ export const metadata = { title: "Projects — Siddhesh Parab" };
 export const dynamic = "force-dynamic";
 
 export default async function ProjectsPage() {
-  const projects = await getProjects().catch(() => []);
+  const projects = await getProjects().catch((err: any) => [{
+    id: "error",
+    title: "ERROR",
+    slug: "error",
+    type: "ERROR",
+    desc: err.message || String(err),
+    outcomes: ["Check Vercel Environment Variables", "Check Notion Integration Permissions"],
+    stack: [],
+    github: null,
+    pypi: null
+  }]);
 
   return (
     <div className="pt-20">
