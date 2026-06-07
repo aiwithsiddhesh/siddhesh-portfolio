@@ -4,7 +4,7 @@ import RevealWrapper from "@/components/RevealWrapper";
 import { getAllPosts } from "@/lib/notion";
 
 export const metadata = { title: "Blog — Siddhesh Parab" };
-export const revalidate = 1800; // re-fetch from Notion every 30 min (matches GitHub Action interval)
+export const dynamic = "force-dynamic";
 
 export default async function BlogPage() {
   let posts = await getAllPosts().catch(() => []);
